@@ -30,6 +30,11 @@ class NotFoundError(AppError):
         super().__init__(404, "not_found", f"{resource} not found")
 
 
+class GatewayTimeoutError(AppError):
+    def __init__(self, message: str = "approved source retrieval timed out") -> None:
+        super().__init__(504, "gateway_timeout", message)
+
+
 def _request_id(request: Request) -> str | None:
     return request.headers.get("X-Request-ID")
 

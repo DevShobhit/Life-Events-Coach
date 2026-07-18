@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, Response
 from opentelemetry import trace
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -21,6 +21,7 @@ from app.core.errors import (
     AppError,
     BadRequestError,
     ForbiddenError,
+    GatewayTimeoutError,
     NotFoundError,
     app_error_handler,
     http_error_handler,
@@ -30,12 +31,18 @@ from app.core.errors import (
 from app.core.logging import configure_logging
 from app.core.settings import get_settings
 from app.core.telemetry import configure_tracing, instrument_fastapi
+from app.modules.phases.ask_api import (
+    AskResponse,
+    RoadmapFoldRequest,
+    answer_question,
+)
 from app.modules.phases.catalog import (
     PublishedPhaseModule,
     get_module,
     get_persisted_module,
     list_catalog,
 )
+from app.modules.phases.grounding import GroundingTimeout
 from app.modules.phases.lifecycle import CardAction
 from app.modules.phases.roadmap import (
     RoadmapResponse,
@@ -184,6 +191,67 @@ class RoadmapActionRequest(BaseModel):
     action: CardAction
     stage: str = "arrived"
     idempotency_key: str
+
+
+class AskRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=500)
+
+
+@app.post("/ask/{user_id}/{phase_id}", response_model=AskResponse, tags=["ask"])
+async def ask(
+    user_id: str,
+    phase_id: str,
+    request: AskRequest,
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    authenticated_user: str = Depends(request_user),  # noqa: B008
+) -> AskResponse:
+    if authenticated_user != user_id:
+        raise ForbiddenError("user scope mismatch")
+    published = await get_persisted_module(session, phase_id)
+    if published is None:
+        raise NotFoundError("phase")
+    try:
+        return await answer_question(
+            published.module, version=published.version, question=request.question
+        )
+    except GroundingTimeout as error:
+        raise GatewayTimeoutError() from error
+
+
+@app.post(
+    "/ask/{user_id}/{phase_id}/roadmap-folds/{concern_id}",
+    response_model=RoadmapResponse,
+    tags=["ask"],
+)
+async def confirm_roadmap_fold(
+    user_id: str,
+    phase_id: str,
+    concern_id: str,
+    request: RoadmapFoldRequest,
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    authenticated_user: str = Depends(request_user),  # noqa: B008
+) -> RoadmapResponse:
+    if authenticated_user != user_id:
+        raise ForbiddenError("user scope mismatch")
+    if not request.confirm:
+        raise BadRequestError("confirm must be true to fold a concern into the roadmap")
+    published = await get_persisted_module(session, phase_id)
+    if published is None:
+        raise NotFoundError("phase")
+    try:
+        return await apply_persistent_action(
+            session,
+            published.module,
+            version=published.version,
+            user_id=user_id,
+            concern_id=concern_id,
+            action=CardAction.RELEVANT,
+            stage=request.stage,
+            idempotency_key=request.idempotency_key,
+            today=date.today(),
+        )
+    except ValueError as error:
+        raise BadRequestError(str(error)) from error
 
 
 @app.post(

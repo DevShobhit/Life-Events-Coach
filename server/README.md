@@ -1,6 +1,6 @@
 # LifeCurriculum API
 
-FastAPI foundation for the LifeCurriculum backend. It currently provides operational endpoints and cross-cutting infrastructure only; no product, authentication, or persistence behavior exists yet.
+FastAPI backend for the LifeCurriculum phased curriculum. It provides phase-scoped Ask and roadmap APIs, async ORM persistence, and operational telemetry; authentication remains represented by the current `X-User-ID` scope boundary.
 
 ## Local setup
 
@@ -22,8 +22,16 @@ Open `http://localhost:8000/docs` for the generated API documentation.
 | `GET /health/live` | Process liveness; it does not query dependencies. |
 | `GET /health/ready` | Readiness. It is intentionally identical to liveness until a real dependency is added. |
 | `GET /metrics` | Prometheus text-format request count and latency metrics. Keep this endpoint private in a deployed environment. |
+| `POST /ask/{user_id}/{phase_id}` | Curated-first, citation-grounded Ask response with an explicit roadmap proposal. |
+| `POST /ask/{user_id}/{phase_id}/roadmap-folds/{concern_id}` | Confirm a proposed roadmap fold; requires `confirm: true` and an idempotency key. |
+| `GET /roadmap/{user_id}/{phase_id}` | Persisted Now/Horizon roadmap. |
 
 Every API response carries an `X-Request-ID`. The server emits one JSON log event per completed request with that request ID and records OpenTelemetry traces. Do not add user data, authorization headers, request bodies, or raw questions to logs, spans, or metric labels.
+
+Ask never mutates roadmap progress. A grounded response may include a
+`roadmap_proposal`; only the separate confirmation endpoint records the
+explicit fold through the async ORM action repository. Errors use the stable
+`error` envelope documented in `docs/data-contracts.md`.
 
 ## Configuration
 

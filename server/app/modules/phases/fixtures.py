@@ -70,5 +70,21 @@ LAUNCH_RELOCATION = PhaseModule.model_validate(
                 "card": {"body": "Choose one essential service to set up today."},
             },
         ],
+        "qa_bank": [
+            {
+                "id": "documents-before-departure",
+                "question": "What documents should I organize before departure?",
+                "answer": "Keep identity and visa records together before departure.",
+                "citations": [
+                    {
+                        "id": "fixture-government-documents",
+                        "title": "Official travel document guidance",
+                        "url": "https://example.gov/travel-documents",
+                        "source_type": "government_portal",
+                        "reviewed_on": "2026-07-01",
+                    }
+                ],
+            }
+        ],
     }
 )
