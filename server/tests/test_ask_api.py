@@ -1,12 +1,15 @@
 import asyncio
 from collections.abc import AsyncIterator, Iterator
+from datetime import date
 
 import pytest
 from app.core.database import get_session
 from app.main import app
+from app.modules.phases.enrollment_repository import EnrollmentRepository
 from app.modules.phases.fixtures import LAUNCH_RELOCATION
 from app.modules.phases.orm_models import Base
 from app.modules.phases.repository import PhaseModuleRepository
+from app.modules.phases.schemas import Enrollment
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -139,3 +142,42 @@ def test_ask_rejects_malformed_question() -> None:
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "validation_error"
+
+
+def test_relocation_vertical_slice_enrollment_roadmap_action_ask() -> None:
+    async def enroll() -> None:
+        async with session_factory() as session:
+            await EnrollmentRepository(session).save(
+                Enrollment(
+                    user_id="synthetic-user",
+                    phase_id="relocation",
+                    context={"relocation_stage": "arrived"},
+                    progress_anchor=date(2026, 7, 18),
+                )
+            )
+
+    asyncio.run(enroll())
+    client = TestClient(app)
+    headers = {"X-User-ID": "synthetic-user", "X-Request-ID": "slice-001"}
+    initial = client.get("/roadmap/synthetic-user/relocation", headers=headers)
+    concern_id = initial.json()["current"]["concern_id"]
+    action = client.post(
+        "/roadmap/synthetic-user/relocation/actions",
+        json={
+            "concern_id": concern_id,
+            "action": "done",
+            "idempotency_key": "slice-001",
+        },
+        headers=headers,
+    )
+    ask = client.post(
+        "/ask/synthetic-user/relocation",
+        json={"question": "registration deadline"},
+        headers=headers,
+    )
+
+    assert initial.status_code == 200
+    assert action.status_code == 200
+    assert ask.status_code == 200
+    assert ask.json()["citations"]
+    assert ask.json()["mode"] == "grounded"

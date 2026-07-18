@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM ghcr.io/astral-sh/uv:0.11.29-python3.13-bookworm-slim AS builder
+FROM ghcr.io/astral-sh/uv:0.8.15-python3.13-bookworm-slim AS builder
 
 WORKDIR /app
 COPY pyproject.toml uv.lock ./

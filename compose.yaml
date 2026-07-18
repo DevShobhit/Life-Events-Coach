@@ -5,10 +5,13 @@ services:
     environment:
       APP_ENV: development
       LOG_LEVEL: INFO
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/lifecurriculum
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     ports:
       - "8000:8000"
     depends_on:
+      postgres:
+        condition: service_healthy
       otel-collector:
         condition: service_started
     healthcheck:
@@ -20,10 +23,28 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: lifecurriculum
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ./server/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d lifecurriculum"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.124.1
+    image: otel/opentelemetry-collector-contrib:latest
     command: ["--config=/etc/otelcol-contrib/config.yaml"]
     volumes:
       - ./infra/otel/collector.yaml:/etc/otelcol-contrib/config.yaml:ro
     ports:
       - "4318:4318"
+
+volumes:
+  postgres-data:
