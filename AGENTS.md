@@ -3,7 +3,7 @@
 ## Project Structure & Module Organization
 
 - `ui/` contains the Next.js 16 frontend: routes in `ui/app/`, reusable primitives in `ui/components/ui/`, and shared helpers in `ui/lib/`.
-- `server/` is the FastAPI backend. Cross-cutting code belongs in `server/app/core/`; add product modules under `server/app/modules/<domain>/` only when a feature exists. Tests live in `server/tests/`.
+- `server/` is the FastAPI backend. Put cross-cutting code in `server/app/core/`; add `server/app/modules/<domain>/` only for real features. Tests live in `server/tests/`.
 - `infra/otel/` holds local OpenTelemetry Collector configuration. `compose.yaml` starts the backend and collector. Product and engineering decisions live under `docs/`.
 
 ## Build, Test, and Development Commands
@@ -29,13 +29,17 @@ Use `docker compose up --build` at the repository root to start the API and loca
 
 ## Coding Style & Naming Conventions
 
-Use TypeScript `camelCase` values and `PascalCase` React components/types. Use Python `snake_case` modules/functions and `PascalCase` classes. Keep route handlers thin; place configuration, logging, and telemetry in `server/app/core/`. Format Python with Black and lint with Ruff; do not hand-edit `server/pyproject.toml` for dependencies—use `uv add` or `uv remove`.
+Use TypeScript `camelCase` values and `PascalCase` React components/types. Use Python `snake_case` modules/functions and `PascalCase` classes. Keep route handlers thin. Format Python with Black and lint with Ruff; manage dependencies only with `uv add` or `uv remove`.
 
 Read `ui/AGENTS.md` before frontend work: this Next.js version has breaking changes, so consult its installed documentation before using unfamiliar APIs.
 
 ## Testing Guidelines
 
 Write a failing test before behavior changes. Name tests `test_<expected_behavior>()`; test API outcomes rather than internal calls. Cover success, invalid input, and authorization/error paths where applicable. Run the focused test, then the full backend quality commands before requesting review.
+
+## Documentation, Tasks, and Agent Log
+
+Before coding, mark `_tasks/todo_<phase>.md` and append a start record to `_agent_logs/agent-log.md`. On completion, record results and update affected API/data docs, READMEs, and diagrams. Follow `docs/_internal/development-workflow.md`; no task is done without this evidence.
 
 ## Security & Configuration
 

@@ -65,4 +65,9 @@ From the repository root:
 docker compose up --build
 ```
 
-The API runs as a non-root user. The local OpenTelemetry Collector accepts OTLP/HTTP on port 4318 and writes trace summaries to its container log. It is a development-only telemetry sink; choose and secure a hosted telemetry backend before deployment.
+The API runs as a non-root user. Local compose uses PostgreSQL 18 and the
+OpenTelemetry Collector `latest` image, which accepts OTLP/HTTP on port 4318
+and writes trace summaries to its container log. The floating collector tag is
+for local development only; pin and secure a hosted telemetry backend before
+deployment. See `docs/operations/relocation-mvp-runbook.md` for the synthetic
+vertical slice.
