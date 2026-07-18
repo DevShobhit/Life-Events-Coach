@@ -42,6 +42,7 @@ from app.modules.phases.catalog import (
     get_persisted_module,
     list_catalog,
 )
+from app.modules.phases.freshness import FreshnessReport, freshness_report
 from app.modules.phases.grounding import GroundingTimeout
 from app.modules.phases.lifecycle import CardAction
 from app.modules.phases.roadmap import (
@@ -290,3 +291,23 @@ async def roadmap_action(
 @app.get("/metrics", include_in_schema=False)
 async def metrics() -> PlainTextResponse:
     return PlainTextResponse(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
+@app.get(
+    "/editorial/freshness/{phase_id}",
+    response_model=FreshnessReport,
+    tags=["editorial"],
+)
+async def editorial_freshness(
+    phase_id: str,
+    as_of: date | None = None,
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+) -> FreshnessReport:
+    published = await get_persisted_module(session, phase_id)
+    if published is None:
+        raise NotFoundError("phase")
+    return freshness_report(
+        published.module,
+        version=published.version,
+        as_of=as_of or date.today(),
+    )

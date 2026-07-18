@@ -65,3 +65,13 @@ def test_roadmap_rejects_a_mismatched_user_scope() -> None:
     )
 
     assert response.status_code == 403
+
+
+def test_editorial_freshness_reports_stale_items_without_hiding_content() -> None:
+    response = TestClient(app).get("/editorial/freshness/relocation?as_of=2026-10-01")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["version"] == 1
+    assert body["stale_count"] == len(body["items"])
+    assert body["items"]
