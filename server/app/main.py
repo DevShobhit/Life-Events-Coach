@@ -8,6 +8,7 @@ import structlog
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, Response
+from opentelemetry import trace
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,24 +52,38 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         started_at = perf_counter()
         structlog.contextvars.clear_contextvars()
         structlog.contextvars.bind_contextvars(request_id=request_id)
+        response: Response | None = None
         try:
             response = await call_next(request)
+            return response
         finally:
+            route = request.scope.get("route")
+            route_path = getattr(route, "path", "unmatched")
+            elapsed = perf_counter() - started_at
+            span_context = trace.get_current_span().get_span_context()
+            trace_id = (
+                format(span_context.trace_id, "032x") if span_context.is_valid else None
+            )
+            span_id = (
+                format(span_context.span_id, "016x") if span_context.is_valid else None
+            )
+            status_code = response.status_code if response is not None else 500
+            if response is not None:
+                response.headers["X-Request-ID"] = request_id
+                if trace_id:
+                    response.headers["X-Trace-ID"] = trace_id
+            http_requests.labels(request.method, route_path, status_code).inc()
+            http_duration.labels(request.method, route_path).observe(elapsed)
+            logger.info(
+                "http.request.completed",
+                method=request.method,
+                route=route_path,
+                status_code=status_code,
+                duration_seconds=round(elapsed, 6),
+                trace_id=trace_id,
+                span_id=span_id,
+            )
             structlog.contextvars.clear_contextvars()
-        route = request.scope.get("route")
-        route_path = getattr(route, "path", "unmatched")
-        elapsed = perf_counter() - started_at
-        response.headers["X-Request-ID"] = request_id
-        http_requests.labels(request.method, route_path, response.status_code).inc()
-        http_duration.labels(request.method, route_path).observe(elapsed)
-        logger.info(
-            "http.request.completed",
-            method=request.method,
-            route=route_path,
-            status_code=response.status_code,
-            duration_seconds=round(elapsed, 6),
-        )
-        return response
 
 
 @asynccontextmanager
