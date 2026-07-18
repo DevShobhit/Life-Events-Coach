@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     otel_exporter_otlp_endpoint: AnyHttpUrl | None = None
     allowed_origins: tuple[str, ...] = ("http://localhost:3000",)
+    database_url: str = (
+        "postgresql+asyncpg://postgres:postgres@localhost:5432/lifecurriculum"
+    )
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
