@@ -14,6 +14,9 @@ class AppError(Exception):
     message: str
     details: Any | None = None
 
+    def __post_init__(self) -> None:
+        Exception.__init__(self, self.message)
+
 
 class BadRequestError(AppError):
     def __init__(self, message: str, details: Any | None = None) -> None:
@@ -33,6 +36,13 @@ class NotFoundError(AppError):
 class GatewayTimeoutError(AppError):
     def __init__(self, message: str = "approved source retrieval timed out") -> None:
         super().__init__(504, "gateway_timeout", message)
+
+
+class DependencyUnavailableError(AppError):
+    def __init__(
+        self, message: str = "phase content is temporarily unavailable"
+    ) -> None:
+        super().__init__(503, "dependency_unavailable", message)
 
 
 def _request_id(request: Request) -> str | None:

@@ -4,6 +4,7 @@ from typing import Any, Protocol
 
 from pydantic import ValidationError
 
+from app.modules.phases.cache import ActivePhaseModuleCache, active_phase_module_cache
 from app.modules.phases.schemas import PhaseModule
 
 
@@ -35,9 +36,15 @@ class PhaseModuleCache:
 
 
 class PhaseModulePublisher:
-    def __init__(self, repository: PhaseModuleWriter, cache: PhaseModuleCache) -> None:
+    def __init__(
+        self,
+        repository: PhaseModuleWriter,
+        cache: PhaseModuleCache,
+        active_cache: ActivePhaseModuleCache = active_phase_module_cache,
+    ) -> None:
         self._repository = repository
         self._cache = cache
+        self._active_cache = active_cache
 
     async def publish(
         self,
@@ -66,4 +73,6 @@ class PhaseModulePublisher:
 
         await self._repository.publish(module, version=version)
         self._cache.invalidate(module.phase_id)
+        if self._active_cache is not None:
+            self._active_cache.invalidate(module.phase_id)
         return module
