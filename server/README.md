@@ -1,0 +1,59 @@
+# LifeCurriculum API
+
+FastAPI foundation for the LifeCurriculum backend. It currently provides operational endpoints and cross-cutting infrastructure only; no product, authentication, or persistence behavior exists yet.
+
+## Local setup
+
+The project uses the committed `uv.lock` file and a local `.venv`.
+
+```powershell
+cd server
+.\.venv\Scripts\Activate.ps1
+uv sync --all-groups
+uv run uvicorn app.main:app --reload --port 8000
+```
+
+Open `http://localhost:8000/docs` for the generated API documentation.
+
+## Operational endpoints
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /health/live` | Process liveness; it does not query dependencies. |
+| `GET /health/ready` | Readiness. It is intentionally identical to liveness until a real dependency is added. |
+| `GET /metrics` | Prometheus text-format request count and latency metrics. Keep this endpoint private in a deployed environment. |
+
+Every API response carries an `X-Request-ID`. The server emits one JSON log event per completed request with that request ID and records OpenTelemetry traces. Do not add user data, authorization headers, request bodies, or raw questions to logs, spans, or metric labels.
+
+## Configuration
+
+Copy `.env.example` to `.env` only for local values. `.env` is ignored by Git. Configuration is validated by `app.core.settings` and is read only there.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `APP_ENV` | `development` | Valid values: `development`, `test`, `production`. |
+| `LOG_LEVEL` | `INFO` | Valid values: `DEBUG`, `INFO`, `WARNING`, `ERROR`. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | unset | Optional OTLP/HTTP collector base URL. |
+
+## Quality commands
+
+```powershell
+cd server
+.\.venv\Scripts\Activate.ps1
+uv run pytest tests -p no:cacheprovider
+uv run ruff check app tests
+uv run black --check app tests
+uv run mypy
+```
+
+`pytest` is deliberately scoped to `tests` because the local environment may contain tool-created temporary directories that are not test suites.
+
+## Containers and telemetry
+
+From the repository root:
+
+```powershell
+docker compose up --build
+```
+
+The API runs as a non-root user. The local OpenTelemetry Collector accepts OTLP/HTTP on port 4318 and writes trace summaries to its container log. It is a development-only telemetry sink; choose and secure a hosted telemetry backend before deployment.
