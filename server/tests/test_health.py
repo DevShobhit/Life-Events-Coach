@@ -30,3 +30,17 @@ def test_metrics_endpoint_exposes_http_request_metric() -> None:
 
     assert response.status_code == 200
     assert "lifecurriculum_http_requests_total" in response.text
+
+
+def test_validation_errors_have_stable_code_and_safe_details() -> None:
+    with TestClient(app) as client:
+        response = client.post(
+            "/roadmap/user/relocation/actions",
+            json={"concern_id": "x", "action": "invalid", "stage": "arrived"},
+            headers={"X-User-ID": "user"},
+        )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "validation_error"
+    assert response.json()["error"]["message"] == "request validation failed"
+    assert response.json()["error"]["details"]

@@ -5,16 +5,28 @@ from time import perf_counter
 from uuid import uuid4
 
 import structlog
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, Response
 from opentelemetry import trace
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
 from app.core.database import get_session
+from app.core.errors import (
+    AppError,
+    BadRequestError,
+    ForbiddenError,
+    NotFoundError,
+    app_error_handler,
+    http_error_handler,
+    unexpected_error_handler,
+    validation_error_handler,
+)
 from app.core.logging import configure_logging
 from app.core.settings import get_settings
 from app.core.telemetry import configure_tracing, instrument_fastapi
@@ -98,6 +110,10 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 settings = get_settings()
 app = FastAPI(title="LifeCurriculum API", version="0.1.0", lifespan=lifespan)
+app.add_exception_handler(AppError, app_error_handler)
+app.add_exception_handler(RequestValidationError, validation_error_handler)
+app.add_exception_handler(Exception, unexpected_error_handler)
+app.add_exception_handler(StarletteHTTPException, http_error_handler)
 app.add_middleware(RequestContextMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -132,7 +148,7 @@ async def phase_catalog() -> list[PublishedPhaseModule]:
 async def phase_module(phase_id: str) -> PublishedPhaseModule:
     module = get_module(phase_id)
     if module is None:
-        raise HTTPException(status_code=404, detail="phase not found")
+        raise NotFoundError("phase")
     return module
 
 
@@ -149,10 +165,10 @@ async def roadmap(
     authenticated_user: str = Depends(request_user),  # noqa: B008
 ) -> RoadmapResponse:
     if authenticated_user != user_id:
-        raise HTTPException(status_code=403, detail="user scope mismatch")
+        raise ForbiddenError("user scope mismatch")
     published = await get_persisted_module(session, phase_id)
     if published is None:
-        raise HTTPException(status_code=404, detail="phase not found")
+        raise NotFoundError("phase")
     return await persistent_roadmap(
         session,
         published.module,
@@ -183,10 +199,10 @@ async def roadmap_action(
     authenticated_user: str = Depends(request_user),  # noqa: B008
 ) -> RoadmapResponse:
     if authenticated_user != user_id:
-        raise HTTPException(status_code=403, detail="user scope mismatch")
+        raise ForbiddenError("user scope mismatch")
     published = await get_persisted_module(session, phase_id)
     if published is None:
-        raise HTTPException(status_code=404, detail="phase not found")
+        raise NotFoundError("phase")
     try:
         return await apply_persistent_action(
             session,
@@ -200,7 +216,7 @@ async def roadmap_action(
             today=date.today(),
         )
     except ValueError as error:
-        raise HTTPException(status_code=400, detail=str(error)) from error
+        raise BadRequestError(str(error)) from error
 
 
 @app.get("/metrics", include_in_schema=False)

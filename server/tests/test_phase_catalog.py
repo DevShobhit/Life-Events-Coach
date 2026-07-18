@@ -22,3 +22,10 @@ def test_unknown_phase_is_not_exposed_by_the_catalog() -> None:
     response = TestClient(app).get("/phases/new_parent")
 
     assert response.status_code == 404
+    assert response.json() == {
+        "error": {
+            "code": "not_found",
+            "message": "phase not found",
+            "request_id": None,
+        }
+    }
