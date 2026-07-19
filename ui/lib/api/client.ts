@@ -76,6 +76,32 @@ export class LifeCurriculumClient {
     );
   }
 
+  fold(
+    userId: string,
+    phaseId: string,
+    concernId: string,
+    idempotencyKey: string,
+    signal?: AbortSignal,
+  ) {
+    return this.withRetry(
+      () =>
+        this.request<RoadmapResponse>(
+          `/ask/${encodeURIComponent(userId)}/${encodeURIComponent(phaseId)}/roadmap-folds/${encodeURIComponent(concernId)}`,
+          {
+            userId,
+            method: "POST",
+            body: {
+              confirm: true,
+              stage: "arrived",
+              idempotency_key: idempotencyKey,
+            },
+            signal,
+          },
+        ),
+      signal,
+    );
+  }
+
   private async withRetry<T>(
     operation: () => Promise<T>,
     signal?: AbortSignal,
