@@ -27,6 +27,10 @@ Open `http://localhost:8000/docs` for the generated API documentation.
 | `GET /roadmap/{user_id}/{phase_id}` | Persisted Now/Horizon roadmap. |
 | `GET /enrollment/{user_id}/{phase_id}` | Read the user-scoped active enrollment. |
 | `PUT /enrollment/{user_id}/{phase_id}` | Idempotently create or update enrollment context and progress anchor. |
+
+Notification preference persistence is intentionally unavailable until a
+notification delivery and storage contract is introduced; clients must not
+simulate updates for it.
 | `GET /editorial/freshness/{phase_id}` | Read-only citation freshness report; accepts optional `as_of`. |
 
 Every API response carries an `X-Request-ID`. The server emits one JSON log event per completed request with that request ID and records OpenTelemetry traces. Do not add user data, authorization headers, request bodies, or raw questions to logs, spans, or metric labels.

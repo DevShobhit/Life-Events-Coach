@@ -51,6 +51,12 @@ The current backend has no enrollment create/read/update endpoint and no
 notification-preference endpoint. F-03 must add or explicitly defer those
 contracts before onboarding and settings can claim persistence.
 
+Enrollment is now available through scoped `GET`/`PUT`
+`/enrollment/{user_id}/{phase_id}`. Notification preference persistence is
+explicitly unavailable in this MVP: the settings screen must not present a
+save control or simulate a server update until notification delivery and its
+storage contract exist.
+
 Until contracts exist, the client does not implement real authentication,
 phase switching, archive/history, resource-library browsing, notification
 delivery, export/delete, profile avatars, or unsupported mockup controls.
