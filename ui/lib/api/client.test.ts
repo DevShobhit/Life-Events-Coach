@@ -1,0 +1,89 @@
+import { describe, expect, test } from "bun:test";
+
+import { LifeCurriculumClient } from "./client";
+import { ApiError } from "./errors";
+
+describe("LifeCurriculumClient", () => {
+  test("sends scoped roadmap requests with a request id", async () => {
+    const requests: Request[] = [];
+    const client = new LifeCurriculumClient({
+      baseUrl: "https://api.example.test",
+      fetcher: async (input, init) => {
+        requests.push(new Request(input, init));
+        return Response.json({
+          phase_id: "relocation",
+          version: 1,
+          now: [],
+          current: null,
+          horizon: [],
+        });
+      },
+    });
+
+    await client.roadmap("dev-user", "relocation", "arrived");
+
+    expect(requests[0]?.url).toBe(
+      "https://api.example.test/roadmap/dev-user/relocation?stage=arrived",
+    );
+    expect(requests[0]?.headers.get("X-User-ID")).toBe("dev-user");
+    expect(requests[0]?.headers.get("X-Request-ID")).toBeString();
+  });
+
+  test("serializes idempotent action payloads", async () => {
+    let request: Request | undefined;
+    const client = new LifeCurriculumClient({
+      baseUrl: "https://api.example.test",
+      fetcher: async (input, init) => {
+        request = new Request(input, init);
+        return Response.json({
+          phase_id: "relocation",
+          version: 1,
+          now: [],
+          current: null,
+          horizon: [],
+        });
+      },
+    });
+
+    await client.action("dev-user", "relocation", {
+      concern_id: "housing",
+      action: "done",
+      idempotency_key: "request-1",
+    });
+
+    expect(await request?.json()).toEqual({
+      concern_id: "housing",
+      action: "done",
+      idempotency_key: "request-1",
+    });
+  });
+
+  test("maps server error codes without exposing raw messages", async () => {
+    const client = new LifeCurriculumClient({
+      fetcher: async () =>
+        Response.json(
+          {
+            error: {
+              code: "dependency_unavailable",
+              message: "internal storage details",
+              request_id: "req-1",
+            },
+          },
+          { status: 503 },
+        ),
+    });
+
+    const result = client.roadmap("dev-user", "relocation");
+
+    await expect(result).rejects.toBeInstanceOf(ApiError);
+    await expect(result).rejects.toMatchObject({
+      code: "dependency_unavailable",
+      requestId: "req-1",
+      status: 503,
+    });
+    await expect(result).rejects.not.toHaveProperty(
+      "message",
+      "internal storage details",
+    );
+  });
+});
