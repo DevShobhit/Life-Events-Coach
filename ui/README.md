@@ -1,4 +1,11 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Steady Path is the Next.js 16 frontend for the LifeCurriculum relocation MVP.
+
+## Foundation
+
+- Use Bun for installs, scripts, and the checked-in lockfile.
+- The design contract lives in `DESIGN.md`; semantic tokens are defined in `app/globals.css`.
+- shadcn primitives are sourced from the configured `base-nova` registry and installed `components/ui` set. This phase adds no duplicate primitives; later screens compose existing blocks first.
+- Next 16 App Router documentation under `node_modules/next/dist/docs/` is the source of truth for framework APIs.
 
 ## Getting Started
 
