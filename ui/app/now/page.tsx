@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import type { CardAction } from "@/lib/api/types";
+import { nextSkipCount, shouldAskRelevance } from "@/lib/roadmap/transitions";
 import { useRoadmap } from "@/lib/roadmap/use-roadmap";
 import { useSessionStore } from "@/lib/state/session";
 
@@ -44,9 +45,9 @@ export default function NowPage() {
     : null;
   const submitAction = async (concernId: string, action: CardAction) => {
     if (action === "skip") {
-      const nextCount = (skipCounts[concernId] ?? 0) + 1;
+      const nextCount = nextSkipCount(skipCounts[concernId] ?? 0);
       setSkipCounts((counts) => ({ ...counts, [concernId]: nextCount }));
-      if (nextCount >= 2) setRelevanceCard(concernId);
+      if (shouldAskRelevance(nextCount)) setRelevanceCard(concernId);
     }
     await act(concernId, action);
   };
