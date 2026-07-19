@@ -25,6 +25,8 @@ Open `http://localhost:8000/docs` for the generated API documentation.
 | `POST /ask/{user_id}/{phase_id}` | Curated-first, citation-grounded Ask response with an explicit roadmap proposal. |
 | `POST /ask/{user_id}/{phase_id}/roadmap-folds/{concern_id}` | Confirm a proposed roadmap fold; requires `confirm: true` and an idempotency key. |
 | `GET /roadmap/{user_id}/{phase_id}` | Persisted Now/Horizon roadmap. |
+| `GET /enrollment/{user_id}/{phase_id}` | Read the user-scoped active enrollment. |
+| `PUT /enrollment/{user_id}/{phase_id}` | Idempotently create or update enrollment context and progress anchor. |
 | `GET /editorial/freshness/{phase_id}` | Read-only citation freshness report; accepts optional `as_of`. |
 
 Every API response carries an `X-Request-ID`. The server emits one JSON log event per completed request with that request ID and records OpenTelemetry traces. Do not add user data, authorization headers, request bodies, or raw questions to logs, spans, or metric labels.

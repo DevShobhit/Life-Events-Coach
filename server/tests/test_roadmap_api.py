@@ -67,6 +67,28 @@ def test_roadmap_rejects_a_mismatched_user_scope() -> None:
     assert response.status_code == 403
 
 
+def test_enrollment_can_be_upserted_and_read_in_user_scope() -> None:
+    client = TestClient(app)
+    response = client.put(
+        "/enrollment/enrolled-user/relocation",
+        json={"context": {"stage": "preparing"}, "progress_anchor": "2026-07-19"},
+        headers={"X-User-ID": "enrolled-user"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["context"] == {"stage": "preparing"}
+
+
+def test_enrollment_rejects_a_mismatched_user_scope() -> None:
+    response = TestClient(app).put(
+        "/enrollment/enrolled-user/relocation",
+        json={"context": {}},
+        headers={"X-User-ID": "other-user"},
+    )
+
+    assert response.status_code == 403
+
+
 def test_editorial_freshness_reports_stale_items_without_hiding_content() -> None:
     response = TestClient(app).get("/editorial/freshness/relocation?as_of=2026-10-01")
 

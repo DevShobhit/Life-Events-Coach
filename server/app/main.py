@@ -42,6 +42,7 @@ from app.modules.phases.catalog import (
     get_persisted_module,
     list_catalog,
 )
+from app.modules.phases.enrollment_repository import EnrollmentRepository
 from app.modules.phases.freshness import FreshnessReport, freshness_report
 from app.modules.phases.grounding import GroundingTimeout
 from app.modules.phases.lifecycle import CardAction
@@ -50,6 +51,7 @@ from app.modules.phases.roadmap import (
     apply_persistent_action,
     persistent_roadmap,
 )
+from app.modules.phases.schemas import Enrollment
 
 logger = structlog.get_logger()
 http_requests = Counter(
@@ -127,7 +129,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=list(settings.allowed_origins),
     allow_credentials=False,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PUT"],
     allow_headers=["X-Request-ID", "Content-Type"],
 )
 instrument_fastapi(app)
@@ -192,6 +194,58 @@ class RoadmapActionRequest(BaseModel):
     action: CardAction
     stage: str = "arrived"
     idempotency_key: str
+
+
+class EnrollmentRequest(BaseModel):
+    context: dict[str, str] = Field(default_factory=dict)
+    progress_anchor: date = Field(default_factory=date.today)
+
+
+@app.get(
+    "/enrollment/{user_id}/{phase_id}",
+    response_model=Enrollment,
+    tags=["enrollment"],
+)
+async def enrollment(
+    user_id: str,
+    phase_id: str,
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    authenticated_user: str = Depends(request_user),  # noqa: B008
+) -> Enrollment:
+    if authenticated_user != user_id:
+        raise ForbiddenError("user scope mismatch")
+    enrollment_record = await EnrollmentRepository(session).get(user_id, phase_id)
+    if enrollment_record is None:
+        raise NotFoundError("enrollment")
+    return enrollment_record
+
+
+@app.put(
+    "/enrollment/{user_id}/{phase_id}",
+    response_model=Enrollment,
+    tags=["enrollment"],
+)
+async def save_enrollment(
+    user_id: str,
+    phase_id: str,
+    request: EnrollmentRequest,
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    authenticated_user: str = Depends(request_user),  # noqa: B008
+) -> Enrollment:
+    if authenticated_user != user_id:
+        raise ForbiddenError("user scope mismatch")
+    await EnrollmentRepository(session).save(
+        Enrollment(
+            user_id=user_id,
+            phase_id=phase_id,
+            context=request.context,
+            progress_anchor=request.progress_anchor,
+        )
+    )
+    saved = await EnrollmentRepository(session).get(user_id, phase_id)
+    if saved is None:
+        raise NotFoundError("enrollment")
+    return saved
 
 
 class AskRequest(BaseModel):
