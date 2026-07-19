@@ -22,10 +22,8 @@ import { useSessionStore } from "@/lib/state/session";
 export default function NowPage() {
   const userId = useSessionStore((state) => state.developmentUserId);
   const phaseId = useSessionStore((state) => state.activePhase);
-  const { act, error, isLoading, load, pendingAction, roadmap } = useRoadmap(
-    userId,
-    phaseId,
-  );
+  const { act, error, isCached, isLoading, load, pendingAction, roadmap } =
+    useRoadmap(userId, phaseId);
   const [skipCounts, setSkipCounts] = useState<Record<string, number>>({});
   const [relevanceCard, setRelevanceCard] = useState<string | null>(null);
 
@@ -68,6 +66,12 @@ export default function NowPage() {
         <p className="text-sm text-destructive" role="alert">
           {error.message}
         </p>
+      ) : null}
+      {isCached ? (
+        <output className="text-sm text-muted-foreground">
+          Showing your last saved roadmap. We will refresh when the connection
+          returns.
+        </output>
       ) : null}
       {current && cardData ? (
         <div className="w-full max-w-2xl">
