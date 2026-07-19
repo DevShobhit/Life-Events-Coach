@@ -2,14 +2,37 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { apiClient } from "@/lib/api/client";
+import { useSessionStore } from "@/lib/state/session";
 
 export default function OnboardingPage() {
   const [stage, setStage] = useState("");
+  const [error, setError] = useState<Error | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const userId = useSessionStore((state) => state.developmentUserId);
+  const phaseId = useSessionStore((state) => state.activePhase);
   const router = useRouter();
+
+  const continueToNow = async () => {
+    if (!stage.trim()) return;
+    setIsSaving(true);
+    setError(null);
+    try {
+      await apiClient.saveEnrollment(userId, phaseId, { stage: stage.trim() });
+      router.push("/now");
+    } catch (nextError) {
+      setError(
+        nextError instanceof Error
+          ? nextError
+          : new Error("Unable to save your context"),
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center gap-8 px-6 py-12 sm:px-10">
@@ -33,16 +56,20 @@ export default function OnboardingPage() {
           value={stage}
         />
         <p className="text-sm text-muted-foreground">
-          This is a local draft for now. Enrollment persistence will be
-          connected when its API contract is available.
+          Your context is saved to the active development enrollment.
         </p>
       </div>
+      {error ? (
+        <p className="text-sm text-destructive" role="alert">
+          {error.message}
+        </p>
+      ) : null}
       <Button
         className="min-h-11 w-fit"
-        disabled={!stage.trim()}
-        onClick={() => router.push("/now")}
+        disabled={!stage.trim() || isSaving}
+        onClick={() => void continueToNow()}
       >
-        Continue to Now
+        {isSaving ? "Saving…" : "Continue to Now"}
       </Button>
     </main>
   );

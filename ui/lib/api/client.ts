@@ -1,5 +1,10 @@
 import { ApiError } from "./errors";
-import type { AskResponse, CardAction, RoadmapResponse } from "./types";
+import type {
+  AskResponse,
+  CardAction,
+  Enrollment,
+  RoadmapResponse,
+} from "./types";
 
 type ClientOptions = {
   baseUrl?: string;
@@ -99,6 +104,17 @@ export class LifeCurriculumClient {
           },
         ),
       signal,
+    );
+  }
+
+  saveEnrollment(
+    userId: string,
+    phaseId: string,
+    context: Record<string, string>,
+  ) {
+    return this.request<Enrollment>(
+      `/enrollment/${encodeURIComponent(userId)}/${encodeURIComponent(phaseId)}`,
+      { userId, method: "PUT", body: { context } },
     );
   }
 

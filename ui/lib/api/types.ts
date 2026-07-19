@@ -47,3 +47,10 @@ export type AskResponse = {
     status: string;
   } | null;
 };
+
+export type Enrollment = {
+  user_id: string;
+  phase_id: string;
+  context: Record<string, string>;
+  progress_anchor: string;
+};
