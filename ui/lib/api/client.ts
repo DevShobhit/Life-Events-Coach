@@ -29,9 +29,13 @@ export class LifeCurriculumClient {
     stage = "arrived",
     signal?: AbortSignal,
   ) {
-    return this.request<RoadmapResponse>(
-      `/roadmap/${encodeURIComponent(userId)}/${encodeURIComponent(phaseId)}?stage=${encodeURIComponent(stage)}`,
-      { userId, signal },
+    return this.withRetry(
+      () =>
+        this.request<RoadmapResponse>(
+          `/roadmap/${encodeURIComponent(userId)}/${encodeURIComponent(phaseId)}?stage=${encodeURIComponent(stage)}`,
+          { userId, signal },
+        ),
+      signal,
     );
   }
 
@@ -46,22 +50,50 @@ export class LifeCurriculumClient {
     },
     signal?: AbortSignal,
   ) {
-    return this.request<RoadmapResponse>(
-      `/roadmap/${encodeURIComponent(userId)}/${encodeURIComponent(phaseId)}/actions`,
-      { userId, method: "POST", body: payload, signal },
+    return this.withRetry(
+      () =>
+        this.request<RoadmapResponse>(
+          `/roadmap/${encodeURIComponent(userId)}/${encodeURIComponent(phaseId)}/actions`,
+          { userId, method: "POST", body: payload, signal },
+        ),
+      signal,
     );
   }
 
   ask(userId: string, phaseId: string, question: string, signal?: AbortSignal) {
-    return this.request<AskResponse>(
-      `/ask/${encodeURIComponent(userId)}/${encodeURIComponent(phaseId)}`,
-      {
-        userId,
-        method: "POST",
-        body: { question },
-        signal,
-      },
+    return this.withRetry(
+      () =>
+        this.request<AskResponse>(
+          `/ask/${encodeURIComponent(userId)}/${encodeURIComponent(phaseId)}`,
+          {
+            userId,
+            method: "POST",
+            body: { question },
+            signal,
+          },
+        ),
+      signal,
     );
+  }
+
+  private async withRetry<T>(
+    operation: () => Promise<T>,
+    signal?: AbortSignal,
+  ): Promise<T> {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await operation();
+      } catch (error) {
+        if (
+          !(error instanceof ApiError) ||
+          ![503, 504].includes(error.status) ||
+          attempt > 0
+        ) {
+          throw error;
+        }
+        await delay(150, signal);
+      }
+    }
   }
 
   private async request<T>(
@@ -94,6 +126,23 @@ export class LifeCurriculumClient {
 
     return (await response.json()) as T;
   }
+}
+
+function delay(milliseconds: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, milliseconds);
+    signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        reject(
+          signal.reason ??
+            new DOMException("The operation was aborted", "AbortError"),
+        );
+      },
+      { once: true },
+    );
+  });
 }
 
 export const apiClient = new LifeCurriculumClient();
