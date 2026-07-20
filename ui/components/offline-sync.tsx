@@ -28,18 +28,27 @@ export function OfflineSync() {
           const handleUpdateFound = () => {
             logDevelopment("service_worker.update_available");
           };
+          const worker =
+            registration.installing ?? registration.waiting ?? registration.active;
+          const handleStateChange = () => {
+            logDevelopment("service_worker.state_changed", {
+              state: worker?.state ?? "unknown",
+            });
+          };
           const handleControllerChange = () => {
             logDevelopment("service_worker.controller_changed", {
               controlled: Boolean(navigator.serviceWorker.controller),
             });
           };
           registration.addEventListener("updatefound", handleUpdateFound);
+          worker?.addEventListener("statechange", handleStateChange);
           navigator.serviceWorker.addEventListener(
             "controllerchange",
             handleControllerChange,
           );
           cleanupRegistration = () => {
             registration.removeEventListener("updatefound", handleUpdateFound);
+            worker?.removeEventListener("statechange", handleStateChange);
             navigator.serviceWorker.removeEventListener(
               "controllerchange",
               handleControllerChange,
