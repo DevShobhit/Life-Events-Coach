@@ -33,6 +33,8 @@ def test_roadmap_api_returns_now_horizon_and_versioned_citations() -> None:
     body = response.json()
     assert body["version"] == 1
     assert body["current"]["citation_id"]
+    assert "citation_stale" in body["current"]
+    assert "citation_days_since_review" in body["current"]
     assert body["horizon"]
 
 

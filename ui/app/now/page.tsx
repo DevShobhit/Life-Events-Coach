@@ -74,6 +74,7 @@ export default function NowPage() {
         hiddenFactor: current.hidden_factor,
         source: { title: current.citation_title, url: current.citation_url },
         visualUrl: current.visual_url ?? undefined,
+        citationStale: current.citation_stale,
       }
     : null;
   const submitAction = async (concernId: string, action: CardAction) => {

@@ -25,6 +25,8 @@ const roadmap: RoadmapResponse = {
       citation_title: "",
       citation_url: "",
       visual_url: null,
+      citation_days_since_review: 0,
+      citation_stale: false,
       reason: "",
     },
     {
@@ -39,6 +41,8 @@ const roadmap: RoadmapResponse = {
       citation_title: "",
       citation_url: "",
       visual_url: null,
+      citation_days_since_review: 0,
+      citation_stale: false,
       reason: "",
     },
   ],

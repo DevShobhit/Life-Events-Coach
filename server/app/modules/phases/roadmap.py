@@ -28,6 +28,8 @@ class RoadmapCard(BaseModel):
     citation_url: str
     citation_source_type: str
     citation_reviewed_on: date
+    citation_days_since_review: int
+    citation_stale: bool
     reason: str
 
 
@@ -99,6 +101,11 @@ def assemble_roadmap(
             citation_url=str(item.concern.citation.url),
             citation_source_type=item.concern.citation.source_type.value,
             citation_reviewed_on=item.concern.citation.reviewed_on,
+            citation_days_since_review=(today - item.concern.citation.reviewed_on).days,
+            citation_stale=(
+                today - item.concern.citation.reviewed_on
+            ).days
+            >= module.thresholds.freshness_days,
             reason=item.reason,
         )
 

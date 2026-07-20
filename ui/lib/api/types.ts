@@ -40,6 +40,8 @@ export type RoadmapCard = {
   citation_title: string;
   citation_url: string;
   visual_url: string | null;
+  citation_days_since_review: number;
+  citation_stale: boolean;
   reason: string;
 };
 
@@ -86,7 +88,9 @@ function isRoadmapCard(value: unknown): value is RoadmapCard {
     typeof card.citation_id === "string" &&
     typeof card.citation_title === "string" &&
     typeof card.citation_url === "string" &&
-    (typeof card.visual_url === "string" || card.visual_url === null)
+    (typeof card.visual_url === "string" || card.visual_url === null) &&
+    typeof card.citation_days_since_review === "number" &&
+    typeof card.citation_stale === "boolean"
   );
 }
 

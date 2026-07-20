@@ -25,6 +25,7 @@ export type RoadmapCardData = {
   hiddenFactor: boolean;
   source?: { title: string; url: string };
   visualUrl?: string;
+  citationStale?: boolean;
 };
 
 export type RoadmapCardAction = "done" | "skip" | "already_handled";
@@ -72,6 +73,9 @@ export function RoadmapCardView({
           <h2 className="text-xl font-medium leading-7 tracking-tight">
             {card.title}
           </h2>
+          {card.citationStale ? (
+            <Badge variant="outline">Source review due</Badge>
+          ) : null}
           {card.hiddenFactor ? (
             <Badge className="shrink-0 gap-1" variant="secondary">
               <Eye aria-hidden="true" className="size-3" />
