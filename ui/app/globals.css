@@ -73,6 +73,24 @@
   --shadow-card-token: 0 1px 3px rgb(0 32 69 / 0.08);
 }
 
+@layer components {
+  .landing-display {
+    font-size: clamp(2.5rem, 5vw, 3.75rem);
+    font-weight: 500;
+    letter-spacing: -0.03em;
+    line-height: 1.08;
+    text-wrap: balance;
+  }
+
+  .landing-heading {
+    font-size: clamp(1.875rem, 3vw, 2.25rem);
+    font-weight: 500;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    text-wrap: balance;
+  }
+}
+
 .dark {
   --background: oklch(0.2 0.025 60);
   --foreground: oklch(0.95 0.015 92);
