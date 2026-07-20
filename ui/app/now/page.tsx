@@ -24,8 +24,9 @@ import {
 export default function NowPage() {
   const userId = useSessionStore((state) => state.developmentUserId);
   const phaseId = useSessionStore((state) => state.activePhase);
-  const query = useRoadmapQuery(userId, phaseId);
-  const mutation = useRoadmapActionMutation(userId, phaseId);
+  const stage = useSessionStore((state) => state.activeStage);
+  const query = useRoadmapQuery(userId, phaseId, stage);
+  const mutation = useRoadmapActionMutation(userId, phaseId, stage);
   const roadmap = query.data ?? null;
   const error = query.error
     ? getUserFacingError(query.error)
@@ -84,7 +85,7 @@ export default function NowPage() {
       className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-6 py-10 sm:px-10"
       id="main-content"
     >
-      <AskSheet phaseId={phaseId} userId={userId} />
+      <AskSheet phaseId={phaseId} stage={stage} userId={userId} />
       <div className="space-y-2">
         <p className="text-sm font-medium tracking-wide text-primary">TODAY</p>
         <h1 className="text-3xl font-medium tracking-tight sm:text-4xl">

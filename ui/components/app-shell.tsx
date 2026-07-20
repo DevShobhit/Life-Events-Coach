@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { MobileNavigation } from "@/components/layout/mobile-navigation";
 import { appNavigation } from "@/components/layout/navigation-config";
 import { PrimaryNavigation } from "@/components/layout/primary-navigation";
+import { Logo } from "@/components/logo";
 import { OfflineSync } from "@/components/offline-sync";
 import { useSessionStore } from "@/lib/state/session";
 
@@ -25,11 +26,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <OfflineSync />
       <header className="border-b border-border/70 bg-background/95">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-8">
-          <Link
-            className="text-sm font-medium tracking-wide text-primary"
-            href="/now"
-          >
-            STEADY PATH
+          <Link aria-label="LiveCoach home" href="/now">
+            <Logo />
           </Link>
           <div className="flex items-center gap-2">
             <PrimaryNavigation items={appNavigation} pathname={pathname} />
@@ -45,9 +43,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col pb-20 md:pb-0">
-        {children}
-      </div>
+      <div className="flex flex-1 flex-col pb-20 md:pb-0">{children}</div>
 
       <MobileNavigation items={appNavigation} pathname={pathname} />
     </div>

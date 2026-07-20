@@ -36,6 +36,7 @@ export default function OnboardingPage() {
   const userId = useSessionStore((state) => state.developmentUserId);
   const activePhase = useSessionStore((state) => state.activePhase);
   const setActivePhase = useSessionStore((state) => state.setActivePhase);
+  const setActiveStage = useSessionStore((state) => state.setActiveStage);
   const router = useRouter();
   const phasesQuery = usePublishedPhasesQuery();
   const [step, setStep] = useState(0);
@@ -64,6 +65,7 @@ export default function OnboardingPage() {
   const continueToNow = async (values: EnrollmentFormValues) => {
     if (!selectedPhaseId) return;
     setActivePhase(selectedPhaseId);
+    setActiveStage(values.stage);
     try {
       await mutation.mutateAsync(values);
       router.replace("/now");

@@ -1,4 +1,5 @@
 import { ErrorState, LoadingState } from "@/components/feedback/route-state";
+import { Logo } from "@/components/logo";
 
 export const RouteLoading = LoadingState;
 export const RouteError = ErrorState;
@@ -9,9 +10,7 @@ export function RouteNotFound() {
       className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-4 px-6 py-10 sm:px-10"
       id="main-content"
     >
-      <p className="text-sm font-medium tracking-wide text-primary">
-        STEADY PATH
-      </p>
+      <Logo className="mb-2" />
       <h1 className="text-3xl font-medium tracking-tight">
         That path is not available.
       </h1>

@@ -1,4 +1,4 @@
-const CACHE_NAME = "steady-path-shell-v1";
+const CACHE_NAME = "livecoach-shell-v1";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME));

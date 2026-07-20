@@ -8,11 +8,15 @@ import { getRoadmap } from "./api";
 import { roadmapQueryKeys } from "./query-keys";
 import type { RoadmapResponse } from "./types";
 
-export function roadmapQueryOptions(userId: string, phaseId: string) {
+export function roadmapQueryOptions(
+  userId: string,
+  phaseId: string,
+  stage = "arrived",
+) {
   return {
-    queryKey: roadmapQueryKeys.detail(userId, phaseId),
+    queryKey: roadmapQueryKeys.detail(userId, phaseId, stage),
     queryFn: async ({ signal }: { signal?: AbortSignal }) => {
-      const roadmap = await getRoadmap(userId, phaseId, signal);
+      const roadmap = await getRoadmap(userId, phaseId, stage, signal);
       browserRoadmapOfflineStore()?.write(userId, phaseId, roadmap);
       return roadmap;
     },
@@ -25,6 +29,10 @@ export function roadmapQueryOptions(userId: string, phaseId: string) {
   };
 }
 
-export function useRoadmapQuery(userId: string, phaseId: string) {
-  return useQuery<RoadmapResponse>(roadmapQueryOptions(userId, phaseId));
+export function useRoadmapQuery(
+  userId: string,
+  phaseId: string,
+  stage = "arrived",
+) {
+  return useQuery<RoadmapResponse>(roadmapQueryOptions(userId, phaseId, stage));
 }

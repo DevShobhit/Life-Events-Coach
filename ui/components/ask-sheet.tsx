@@ -45,9 +45,11 @@ const quickPrompts = [
 
 export function AskSheet({
   phaseId,
+  stage,
   userId,
 }: {
   phaseId: string;
+  stage?: string;
   userId: string;
 }) {
   const form = useForm<AskFormValues>({
@@ -55,7 +57,7 @@ export function AskSheet({
     defaultValues: { question: "" },
   });
   const submitMutation = useAskSubmitMutation(userId, phaseId);
-  const foldMutation = useAskFoldMutation(userId, phaseId);
+  const foldMutation = useAskFoldMutation(userId, phaseId, stage);
 
   const pathname = usePathname();
   const router = useRouter();

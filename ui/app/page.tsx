@@ -7,6 +7,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
+import { Logo } from "@/components/logo";
 
 const steps = [
   {
@@ -34,12 +35,8 @@ export default function Home() {
     >
       <section className="grid items-center gap-12 lg:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)] lg:gap-20">
         <div className="max-w-xl">
-          <div className="mb-8 flex items-center gap-3 text-primary">
-            <FoldedRouteMark />
-            <span className="text-[11px] font-medium tracking-[0.28em] text-primary/55">
-              LIVE COACH
-            </span>
-          </div>
+          <Logo />
+
           <div className="mb-7 flex items-center gap-3 text-sm text-muted-foreground">
             <span className="h-px w-8 bg-primary" />
             <span>For the in-between chapters</span>
@@ -48,9 +45,8 @@ export default function Home() {
             A clearer next step, when life feels in motion.
           </h1>
           <p className="mt-7 max-w-md text-lg leading-8 text-muted-foreground">
-            Steady Path turns a big life transition into a calm, practical
-            roadmap — built around your context, not a one-size-fits-all
-            checklist.
+            LiveCoach turns a big life transition into a calm, practical roadmap
+            — built around your context, not a one-size-fits-all checklist.
           </p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
             <Link
@@ -171,34 +167,6 @@ export default function Home() {
         </div>
       </section>
     </main>
-  );
-}
-
-function FoldedRouteMark() {
-  return (
-    <svg
-      aria-label="Folded Route logo mark"
-      className="size-9"
-      fill="none"
-      role="img"
-      viewBox="0 0 32 32"
-    >
-      <path
-        d="M6 22.8h7.2l5.4-5.4-3.8-3.8 4.2-4.2H26"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.8"
-      />
-      <path
-        d="M18.6 17.4h5.2"
-        opacity="0.38"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeWidth="1.4"
-      />
-      <circle cx="26" cy="9.4" fill="currentColor" r="1.5" />
-    </svg>
   );
 }
 

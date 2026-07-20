@@ -13,15 +13,19 @@ export function useAskSubmitMutation(userId: string, phaseId: string) {
   });
 }
 
-export function useAskFoldMutation(userId: string, phaseId: string) {
+export function useAskFoldMutation(
+  userId: string,
+  phaseId: string,
+  stage = "arrived",
+) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationKey: ["roadmap", "fold", userId, phaseId],
     mutationFn: (concernId: string) =>
-      apiClient.fold(userId, phaseId, concernId, crypto.randomUUID()),
+      apiClient.fold(userId, phaseId, concernId, crypto.randomUUID(), stage),
     onSuccess: (roadmap) => {
       queryClient.setQueryData(
-        roadmapQueryKeys.detail(userId, phaseId),
+        roadmapQueryKeys.detail(userId, phaseId, stage),
         roadmap,
       );
     },

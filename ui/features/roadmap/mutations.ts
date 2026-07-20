@@ -22,7 +22,11 @@ export function optimisticallyRemove(
   return { ...roadmap, now, current: now[0] ?? null };
 }
 
-export function useRoadmapActionMutation(userId: string, phaseId: string) {
+export function useRoadmapActionMutation(
+  userId: string,
+  phaseId: string,
+  stage = "arrived",
+) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationKey: ["roadmap", "action", userId, phaseId],
@@ -30,7 +34,7 @@ export function useRoadmapActionMutation(userId: string, phaseId: string) {
       concernId: string;
       action: CardAction;
       idempotencyKey: string;
-    }) => submitRoadmapAction(userId, phaseId, input),
+    }) => submitRoadmapAction(userId, phaseId, stage, input),
     onMutate: async (input) => {
       const queryKey = roadmapQueryKeys.detail(userId, phaseId);
       await queryClient.cancelQueries({ queryKey });

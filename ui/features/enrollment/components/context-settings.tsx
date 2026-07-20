@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -12,15 +13,15 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useEnrollmentSaveMutation } from "@/features/enrollment/mutations";
 import { useEnrollmentQuery } from "@/features/enrollment/queries";
 import {
   type EnrollmentFormValues,
   enrollmentSchema,
 } from "@/features/enrollment/schema";
-import { useEnrollmentSaveMutation } from "@/features/enrollment/mutations";
 import { usePublishedPhasesQuery } from "@/features/phases/queries";
 import { roadmapQueryKeys } from "@/features/roadmap/query-keys";
-import { useQueryClient } from "@tanstack/react-query";
+import { useSessionStore } from "@/lib/state/session";
 import { getUserFacingError } from "@/lib/ux/feedback";
 
 function labelFor(field: string) {
@@ -40,6 +41,7 @@ export function ContextSettings({
   const enrollment = useEnrollmentQuery(userId, phaseId);
   const phases = usePublishedPhasesQuery();
   const mutation = useEnrollmentSaveMutation(userId, phaseId);
+  const setActiveStage = useSessionStore((state) => state.setActiveStage);
   const queryClient = useQueryClient();
   const form = useForm<EnrollmentFormValues>({
     resolver: zodResolver(enrollmentSchema),
@@ -74,17 +76,14 @@ export function ContextSettings({
 
   const save = async (values: EnrollmentFormValues) => {
     await mutation.mutateAsync(values);
+    setActiveStage(values.stage);
     await queryClient.invalidateQueries({
       queryKey: roadmapQueryKeys.detail(userId, phaseId),
     });
   };
 
   return (
-    <form
-      className="space-y-5"
-      onSubmit={form.handleSubmit(save)}
-      noValidate
-    >
+    <form className="space-y-5" onSubmit={form.handleSubmit(save)} noValidate>
       <FieldGroup>
         <Field data-invalid={Boolean(form.formState.errors.stage)}>
           <FieldLabel htmlFor="settings-stage">Current stage</FieldLabel>

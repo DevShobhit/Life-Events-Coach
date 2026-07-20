@@ -3,11 +3,11 @@
 import { useEffect } from "react";
 import { submitRoadmapAction } from "@/features/roadmap/api";
 import { roadmapQueryKeys } from "@/features/roadmap/query-keys";
-import { browserRoadmapOfflineStore } from "@/lib/offline/roadmap-cache";
 import {
   replayQueuedRoadmapActions,
   toRoadmapActionPayload,
 } from "@/lib/offline/replay-roadmap-actions";
+import { browserRoadmapOfflineStore } from "@/lib/offline/roadmap-cache";
 import { queryClient } from "@/lib/query/query-client";
 
 export function OfflineSync() {
@@ -24,6 +24,7 @@ export function OfflineSync() {
           submitRoadmapAction(
             action.userId,
             action.phaseId,
+            "arrived",
             toRoadmapActionPayload(action),
           ).then(() => undefined),
         refresh: (userId, phaseId) =>

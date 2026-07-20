@@ -78,6 +78,7 @@ export class LifeCurriculumClient {
     phaseId: string,
     concernId: string,
     idempotencyKey: string,
+    stage = "arrived",
     signal?: AbortSignal,
   ) {
     return this.request<RoadmapResponse>(
@@ -87,7 +88,7 @@ export class LifeCurriculumClient {
         method: "POST",
         body: {
           confirm: true,
-          stage: "arrived",
+          stage,
           idempotency_key: idempotencyKey,
         },
         signal,

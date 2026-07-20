@@ -4,14 +4,16 @@ import type { CardAction, RoadmapResponse } from "./types";
 export function getRoadmap(
   userId: string,
   phaseId: string,
+  stage = "arrived",
   signal?: AbortSignal,
 ) {
-  return apiClient.roadmap(userId, phaseId, "arrived", signal);
+  return apiClient.roadmap(userId, phaseId, stage, signal);
 }
 
 export function submitRoadmapAction(
   userId: string,
   phaseId: string,
+  stage: string,
   input: { concernId: string; action: CardAction; idempotencyKey: string },
   signal?: AbortSignal,
 ): Promise<RoadmapResponse> {
@@ -21,6 +23,7 @@ export function submitRoadmapAction(
     {
       concern_id: input.concernId,
       action: input.action,
+      stage,
       idempotency_key: input.idempotencyKey,
     },
     signal,

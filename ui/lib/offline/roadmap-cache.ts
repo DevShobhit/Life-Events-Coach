@@ -12,7 +12,7 @@ type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 export function createRoadmapOfflineStore(
   storage: StorageLike,
-  keyPrefix = "steady-path",
+  keyPrefix = "livecoach",
 ) {
   const roadmapKey = (userId: string, phaseId: string) =>
     `${keyPrefix}:roadmap:${userId}:${phaseId}`;

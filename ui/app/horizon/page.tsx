@@ -33,13 +33,14 @@ import { getUserFacingError } from "@/lib/ux/feedback";
 export default function HorizonPage() {
   const userId = useSessionStore((state) => state.developmentUserId);
   const phaseId = useSessionStore((state) => state.activePhase);
-  const mutation = useRoadmapActionMutation(userId, phaseId);
+  const stage = useSessionStore((state) => state.activeStage);
+  const mutation = useRoadmapActionMutation(userId, phaseId, stage);
   const {
     error: queryError,
     isLoading,
     refetch,
     data: roadmap,
-  } = useRoadmapQuery(userId, phaseId);
+  } = useRoadmapQuery(userId, phaseId, stage);
   const error = queryError
     ? getUserFacingError(queryError)
     : mutation.error
