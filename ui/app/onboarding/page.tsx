@@ -1,33 +1,41 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { apiClient } from "@/lib/api/client";
+import { useEnrollmentSaveMutation } from "@/features/enrollment/mutations";
+import {
+  type EnrollmentFormValues,
+  enrollmentSchema,
+} from "@/features/enrollment/schema";
 import { useSessionStore } from "@/lib/state/session";
 import { getUserFacingError } from "@/lib/ux/feedback";
 
 export default function OnboardingPage() {
-  const [stage, setStage] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
   const userId = useSessionStore((state) => state.developmentUserId);
   const phaseId = useSessionStore((state) => state.activePhase);
   const router = useRouter();
+  const mutation = useEnrollmentSaveMutation(userId, phaseId);
+  const form = useForm<EnrollmentFormValues>({
+    resolver: zodResolver(enrollmentSchema),
+    defaultValues: { stage: "" },
+  });
 
-  const continueToNow = async () => {
-    if (!stage.trim()) return;
-    setIsSaving(true);
-    setError(null);
+  const continueToNow = async (values: EnrollmentFormValues) => {
     try {
-      await apiClient.saveEnrollment(userId, phaseId, { stage: stage.trim() });
+      await mutation.mutateAsync(values);
       router.push("/now");
-    } catch (nextError) {
-      setError(getUserFacingError(nextError));
-    } finally {
-      setIsSaving(false);
+    } catch {
+      // The mutation error is rendered below without exposing raw API text.
     }
   };
 
@@ -47,36 +55,40 @@ export default function OnboardingPage() {
       <form
         className="space-y-3"
         id="onboarding-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void continueToNow();
-        }}
+        onSubmit={form.handleSubmit(continueToNow)}
+        noValidate
       >
-        <Label htmlFor="stage">What best describes your current stage?</Label>
-        <Input
-          autoComplete="off"
-          id="stage"
-          name="stage"
-          onChange={(event) => setStage(event.target.value)}
-          placeholder="For example: preparing to move…"
-          value={stage}
-        />
-        <p className="text-sm text-muted-foreground">
-          Your context is saved to the active development enrollment.
-        </p>
+        <FieldGroup>
+          <Field data-invalid={Boolean(form.formState.errors.stage)}>
+            <FieldLabel htmlFor="stage">
+              What best describes your current stage?
+            </FieldLabel>
+            <Input
+              aria-invalid={Boolean(form.formState.errors.stage)}
+              autoComplete="off"
+              id="stage"
+              placeholder="For example: preparing to move…"
+              {...form.register("stage")}
+            />
+            <FieldDescription>
+              Your context is saved to the active development enrollment.
+            </FieldDescription>
+            <FieldError errors={[form.formState.errors.stage]} />
+          </Field>
+        </FieldGroup>
       </form>
-      {error ? (
+      {mutation.error ? (
         <p className="text-sm text-destructive" role="alert">
-          {error}
+          {getUserFacingError(mutation.error)}
         </p>
       ) : null}
       <Button
         className="min-h-11 w-fit"
-        disabled={!stage.trim() || isSaving}
+        disabled={mutation.isPending}
         form="onboarding-form"
         type="submit"
       >
-        {isSaving ? "Saving…" : "Continue to Now"}
+        {mutation.isPending ? "Saving…" : "Continue to Now"}
       </Button>
     </main>
   );

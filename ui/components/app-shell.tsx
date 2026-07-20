@@ -1,20 +1,15 @@
 "use client";
 
-import { Compass, House, MessageCircleQuestion, Settings } from "lucide-react";
+import { MessageCircleQuestion } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-
+import { MobileNavigation } from "@/components/layout/mobile-navigation";
+import { appNavigation } from "@/components/layout/navigation-config";
+import { PrimaryNavigation } from "@/components/layout/primary-navigation";
 import { OfflineSync } from "@/components/offline-sync";
 import { Button } from "@/components/ui/button";
 import { useSessionStore } from "@/lib/state/session";
-import { cn } from "@/lib/utils";
-
-const navigation = [
-  { href: "/now", label: "Now", icon: House },
-  { href: "/horizon", label: "Horizon", icon: Compass },
-  { href: "/settings", label: "Settings", icon: Settings },
-] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -39,14 +34,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             STEADY PATH
           </Link>
           <div className="flex items-center gap-2">
-            <nav
-              aria-label="Primary navigation"
-              className="hidden items-center gap-1 md:flex"
-            >
-              {navigation.map((item) => (
-                <NavLink item={item} key={item.href} pathname={pathname} />
-              ))}
-            </nav>
+            <PrimaryNavigation items={appNavigation} pathname={pathname} />
             <Button
               aria-label="Ask about your path"
               className="min-h-11 gap-2"
@@ -64,44 +52,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {children}
       </div>
 
-      <nav
-        aria-label="Mobile navigation"
-        className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-background md:hidden"
-      >
-        <div className="mx-auto grid h-16 max-w-md grid-cols-3 px-2">
-          {navigation.map((item) => (
-            <NavLink item={item} key={item.href} pathname={pathname} compact />
-          ))}
-        </div>
-      </nav>
+      <MobileNavigation items={appNavigation} pathname={pathname} />
     </div>
-  );
-}
-
-function NavLink({
-  compact = false,
-  item,
-  pathname,
-}: {
-  compact?: boolean;
-  item: (typeof navigation)[number];
-  pathname: string;
-}) {
-  const Icon = item.icon;
-  const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-
-  return (
-    <Link
-      aria-current={active ? "page" : undefined}
-      className={cn(
-        "inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-        active && "bg-accent text-accent-foreground",
-        compact && "m-1 flex-col gap-1 px-2 text-xs",
-      )}
-      href={item.href}
-    >
-      <Icon aria-hidden="true" className="size-4" />
-      {item.label}
-    </Link>
   );
 }

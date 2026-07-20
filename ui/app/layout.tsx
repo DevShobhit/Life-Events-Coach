@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Providers } from "@/app/providers";
 import { AppShell } from "@/components/app-shell";
 import "./globals.css";
 
@@ -21,7 +22,9 @@ export default function RootLayout({
         >
           Skip to content
         </a>
-        <AppShell>{children}</AppShell>
+        <Providers>
+          <AppShell>{children}</AppShell>
+        </Providers>
       </body>
     </html>
   );

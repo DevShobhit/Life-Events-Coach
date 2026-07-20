@@ -12,18 +12,25 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useRoadmapQuery } from "@/features/roadmap/queries";
 import type { RoadmapCard } from "@/lib/api/types";
-import { useRoadmap } from "@/lib/roadmap/use-roadmap";
 import { useSessionStore } from "@/lib/state/session";
+import { getUserFacingError } from "@/lib/ux/feedback";
 
 export default function HorizonPage() {
   const userId = useSessionStore((state) => state.developmentUserId);
   const phaseId = useSessionStore((state) => state.activePhase);
-  const { error, isLoading, load, roadmap } = useRoadmap(userId, phaseId);
+  const {
+    error: queryError,
+    isLoading,
+    refetch,
+    data: roadmap,
+  } = useRoadmapQuery(userId, phaseId);
+  const error = queryError ? getUserFacingError(queryError) : null;
   const [selectedCard, setSelectedCard] = useState<RoadmapCard | null>(null);
 
   if (isLoading && !roadmap) return <RouteLoading />;
-  if (error && !roadmap) return <RouteError onRetry={() => void load()} />;
+  if (error && !roadmap) return <RouteError onRetry={() => void refetch()} />;
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-6 py-10 sm:px-10">

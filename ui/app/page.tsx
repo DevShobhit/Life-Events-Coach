@@ -69,7 +69,7 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="relative min-h-[420px] overflow-hidden rounded-xl border border-border bg-card p-5 shadow-sm sm:p-8">
+        <div className="relative min-h-[420px] overflow-hidden rounded-xl border border-border bg-card p-5 shadow-card sm:p-8">
           <div className="absolute -right-20 -top-20 size-64 rounded-full bg-accent/60 blur-3xl" />
           <div className="relative flex h-full flex-col justify-between gap-8">
             <div className="flex items-start justify-between">

@@ -1,7 +1,9 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { type FormEvent, useState } from "react";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,9 +13,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { apiClient } from "@/lib/api/client";
-import type { AskResponse } from "@/lib/api/types";
+import {
+  useAskFoldMutation,
+  useAskSubmitMutation,
+} from "@/features/ask/mutations";
+import { type AskFormValues, askSchema } from "@/features/ask/schema";
 import { getUserFacingError } from "@/lib/ux/feedback";
 
 export function AskSheet({
@@ -23,11 +34,12 @@ export function AskSheet({
   phaseId: string;
   userId: string;
 }) {
-  const [question, setQuestion] = useState("");
-  const [response, setResponse] = useState<AskResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isFolding, setIsFolding] = useState(false);
+  const form = useForm<AskFormValues>({
+    resolver: zodResolver(askSchema),
+    defaultValues: { question: "" },
+  });
+  const submitMutation = useAskSubmitMutation(userId, phaseId);
+  const foldMutation = useAskFoldMutation(userId, phaseId);
 
   const pathname = usePathname();
   const router = useRouter();
@@ -42,38 +54,34 @@ export function AskSheet({
     }
   };
 
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!question.trim()) return;
-    setIsSubmitting(true);
-    setError(null);
+  const submit = async (values: AskFormValues) => {
     try {
-      setResponse(await apiClient.ask(userId, phaseId, question.trim()));
-    } catch (nextError) {
-      setError(getUserFacingError(nextError));
-    } finally {
-      setIsSubmitting(false);
+      await submitMutation.mutateAsync(values);
+    } catch {
+      // The mutation error is rendered below with the configured safe message.
     }
   };
 
+  const response = submitMutation.data;
   const fold = async () => {
     if (!response?.roadmap_proposal) return;
-    setIsFolding(true);
-    setError(null);
     try {
-      await apiClient.fold(
-        userId,
-        phaseId,
-        response.roadmap_proposal.concern_id,
-        crypto.randomUUID(),
-      );
-      setResponse({ ...response, roadmap_proposal: null });
-    } catch (nextError) {
-      setError(getUserFacingError(nextError));
-    } finally {
-      setIsFolding(false);
+      await foldMutation.mutateAsync(response.roadmap_proposal.concern_id);
+      submitMutation.reset();
+    } catch {
+      // The mutation error is rendered below with the configured safe message.
     }
   };
+
+  useEffect(() => {
+    if (!open) {
+      form.reset();
+      submitMutation.reset();
+      foldMutation.reset();
+    }
+  }, [foldMutation, form, open, submitMutation]);
+
+  const error = submitMutation.error ?? foldMutation.error;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -84,27 +92,36 @@ export function AskSheet({
             Answers use approved sources for the active phase.
           </DialogDescription>
         </DialogHeader>
-        <form className="space-y-3" onSubmit={submit}>
-          <Input
-            autoComplete="off"
-            aria-label="Your question"
-            maxLength={500}
-            name="question"
-            onChange={(event) => setQuestion(event.target.value)}
-            placeholder="What should I know next?…"
-            value={question}
-          />
+        <form
+          className="space-y-3"
+          onSubmit={form.handleSubmit(submit)}
+          noValidate
+        >
+          <FieldGroup>
+            <Field data-invalid={Boolean(form.formState.errors.question)}>
+              <FieldLabel htmlFor="ask-question">Your question</FieldLabel>
+              <Input
+                aria-invalid={Boolean(form.formState.errors.question)}
+                autoComplete="off"
+                id="ask-question"
+                maxLength={500}
+                placeholder="What should I know next?…"
+                {...form.register("question")}
+              />
+              <FieldError errors={[form.formState.errors.question]} />
+            </Field>
+          </FieldGroup>
           <Button
             className="min-h-11"
-            disabled={isSubmitting || !question.trim()}
+            disabled={submitMutation.isPending}
             type="submit"
           >
-            {isSubmitting ? "Thinking…" : "Ask"}
+            {submitMutation.isPending ? "Thinking…" : "Ask"}
           </Button>
         </form>
         {error ? (
           <p className="text-sm text-destructive" role="alert">
-            {error}
+            {getUserFacingError(error)}
           </p>
         ) : null}
         {response ? (
@@ -128,10 +145,10 @@ export function AskSheet({
               <DialogFooter>
                 <Button
                   className="min-h-11"
-                  disabled={isFolding}
+                  disabled={foldMutation.isPending}
                   onClick={() => void fold()}
                 >
-                  {isFolding ? "Adding…" : "Add to my roadmap"}
+                  {foldMutation.isPending ? "Adding…" : "Add to my roadmap"}
                 </Button>
               </DialogFooter>
             ) : null}

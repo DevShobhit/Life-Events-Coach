@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-
-import { apiClient } from "@/lib/api/client";
+import { submitRoadmapAction } from "@/features/roadmap/api";
+import { roadmapQueryKeys } from "@/features/roadmap/query-keys";
 import { browserRoadmapOfflineStore } from "@/lib/offline/roadmap-cache";
+import { queryClient } from "@/lib/query/query-client";
 
 export function OfflineSync() {
   useEffect(() => {
@@ -14,10 +15,13 @@ export function OfflineSync() {
       const store = browserRoadmapOfflineStore();
       if (!store || !navigator.onLine) return;
       await store.replay(async (action) => {
-        await apiClient.action(action.userId, action.phaseId, {
-          concern_id: action.concernId,
+        await submitRoadmapAction(action.userId, action.phaseId, {
+          concernId: action.concernId,
           action: action.action,
-          idempotency_key: action.idempotencyKey,
+          idempotencyKey: action.idempotencyKey,
+        });
+        await queryClient.invalidateQueries({
+          queryKey: roadmapQueryKeys.detail(action.userId, action.phaseId),
         });
       });
     };

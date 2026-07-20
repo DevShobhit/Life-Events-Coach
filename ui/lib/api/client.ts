@@ -1,3 +1,4 @@
+import { appConfig } from "@/lib/config/app-config";
 import { ApiError } from "./errors";
 import type {
   AskResponse,
@@ -21,10 +22,7 @@ export class LifeCurriculumClient {
   private readonly fetcher: typeof fetch;
 
   constructor(options: ClientOptions = {}) {
-    this.baseUrl =
-      options.baseUrl ??
-      process.env.NEXT_PUBLIC_API_URL ??
-      "http://localhost:8000";
+    this.baseUrl = options.baseUrl ?? appConfig.apiUrl;
     this.fetcher = options.fetcher ?? fetch;
   }
 

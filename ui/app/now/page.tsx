@@ -4,40 +4,48 @@ import { useState } from "react";
 import { AskSheet } from "@/components/ask-sheet";
 import { RoadmapCardView } from "@/components/roadmap-card";
 import { RouteError, RouteLoading } from "@/components/route-states";
+import { RoadmapActionDialogs } from "@/features/roadmap/components/roadmap-action-dialogs";
+import { RoadmapQueue } from "@/features/roadmap/components/roadmap-queue";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  offlineQueuedMessage,
+  useRoadmapActionMutation,
+} from "@/features/roadmap/mutations";
+import { useRoadmapQuery } from "@/features/roadmap/queries";
 import type { CardAction } from "@/lib/api/types";
 import { nextSkipCount, shouldAskRelevance } from "@/lib/roadmap/transitions";
-import { useRoadmap } from "@/lib/roadmap/use-roadmap";
 import { useSessionStore } from "@/lib/state/session";
+import {
+  getUserFacingError,
+  shouldQueueRoadmapAction,
+} from "@/lib/ux/feedback";
 
 export default function NowPage() {
   const userId = useSessionStore((state) => state.developmentUserId);
   const phaseId = useSessionStore((state) => state.activePhase);
-  const {
-    act,
-    error,
-    isCached,
-    isLoading,
-    load,
-    offlineMessage,
-    pendingAction,
-    roadmap,
-  } = useRoadmap(userId, phaseId);
+  const query = useRoadmapQuery(userId, phaseId);
+  const mutation = useRoadmapActionMutation(userId, phaseId);
+  const roadmap = query.data ?? null;
+  const error = query.error
+    ? getUserFacingError(query.error)
+    : mutation.error && !shouldQueueRoadmapAction(mutation.error)
+      ? getUserFacingError(mutation.error)
+      : null;
+  const isLoading = query.isLoading;
+  const isCached = query.isPlaceholderData;
+  const offlineMessage =
+    mutation.error && shouldQueueRoadmapAction(mutation.error)
+      ? offlineQueuedMessage
+      : null;
+  const pendingAction = mutation.isPending
+    ? (mutation.variables?.action ?? null)
+    : null;
   const [skipCounts, setSkipCounts] = useState<Record<string, number>>({});
   const [relevanceCard, setRelevanceCard] = useState<string | null>(null);
   const [moreCard, setMoreCard] = useState<string | null>(null);
 
   if (isLoading && !roadmap) return <RouteLoading />;
-  if (error && !roadmap) return <RouteError onRetry={() => void load()} />;
+  if (error && !roadmap)
+    return <RouteError onRetry={() => void query.refetch()} />;
 
   const current = roadmap?.current;
   const cardData = current
@@ -56,7 +64,15 @@ export default function NowPage() {
       setSkipCounts((counts) => ({ ...counts, [concernId]: nextCount }));
       if (shouldAskRelevance(nextCount)) setRelevanceCard(concernId);
     }
-    await act(concernId, action);
+    try {
+      await mutation.mutateAsync({
+        concernId,
+        action,
+        idempotencyKey: crypto.randomUUID(),
+      });
+    } catch {
+      // The mutation exposes the friendly error or queued status in the UI.
+    }
   };
 
   return (
@@ -101,24 +117,7 @@ export default function NowPage() {
                 : undefined
             }
           />
-          {roadmap.now.length > 1 ? (
-            <section aria-label="Up next" className="mt-6 space-y-3">
-              <h2 className="text-sm font-medium tracking-wide text-muted-foreground">
-                UP NEXT
-              </h2>
-              {roadmap.now.slice(1, 5).map((queuedCard) => (
-                <div
-                  className="rounded-lg border border-border bg-card p-4"
-                  key={queuedCard.concern_id}
-                >
-                  <h3 className="font-medium">{queuedCard.title}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {queuedCard.why_now}
-                  </p>
-                </div>
-              ))}
-            </section>
-          ) : null}
+          <RoadmapQueue cards={roadmap.now} />
         </div>
       ) : (
         <output className="rounded-lg border border-dashed border-border p-8 text-center">
@@ -128,56 +127,17 @@ export default function NowPage() {
           </p>
         </output>
       )}
-      <AlertDialog
-        open={Boolean(relevanceCard)}
-        onOpenChange={(open) => !open && setRelevanceCard(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Is this relevant to you?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You have skipped this twice. Keep it in your roadmap, or remove it
-              as not relevant?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep deciding</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (relevanceCard)
-                  void submitAction(relevanceCard, "not_relevant");
-                setRelevanceCard(null);
-              }}
-            >
-              Not relevant
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      <AlertDialog
-        open={Boolean(moreCard)}
-        onOpenChange={(open) => !open && setMoreCard(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Have you already handled this?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Marking it as handled removes it from your active roadmap.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep it</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (moreCard) void submitAction(moreCard, "already_handled");
-                setMoreCard(null);
-              }}
-            >
-              Already handled
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <RoadmapActionDialogs
+        moreCard={moreCard}
+        onAction={(concernId, action) => {
+          void submitAction(concernId, action);
+          setMoreCard(null);
+          setRelevanceCard(null);
+        }}
+        onMoreChange={(open) => !open && setMoreCard(null)}
+        onRelevanceChange={(open) => !open && setRelevanceCard(null)}
+        relevanceCard={relevanceCard}
+      />
     </main>
   );
 }
