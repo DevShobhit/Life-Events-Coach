@@ -47,5 +47,9 @@ export function createEnrollmentSchema(phaseModule?: PhaseModule) {
   return z.object({ stage, context });
 }
 
-export type EnrollmentFormInput = z.input<typeof enrollmentSchema>;
-export type EnrollmentFormValues = z.output<typeof enrollmentSchema>;
+export type EnrollmentFormInput = z.input<
+  ReturnType<typeof createEnrollmentSchema>
+>;
+export type EnrollmentFormValues = z.output<
+  ReturnType<typeof createEnrollmentSchema>
+>;
