@@ -1,4 +1,5 @@
-from app.main import app
+from app.core.database import get_session
+from app.main import app, settings
 from fastapi.testclient import TestClient
 
 
@@ -10,6 +11,42 @@ def test_live_health_returns_service_status_and_request_id() -> None:
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "service": "lifecurriculum-api"}
     assert response.headers["X-Request-ID"]
+
+
+def test_ready_health_requires_database_probe() -> None:
+    class HealthySession:
+        async def execute(self, query):
+            return None
+
+    async def override_session():
+        yield HealthySession()
+
+    app.dependency_overrides[get_session] = override_session
+    try:
+        response = TestClient(app).get("/health/ready")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+
+def test_ready_health_returns_503_when_database_probe_fails() -> None:
+    class BrokenSession:
+        async def execute(self, query):
+            raise RuntimeError("database unavailable")
+
+    async def override_session():
+        yield BrokenSession()
+
+    app.dependency_overrides[get_session] = override_session
+    try:
+        response = TestClient(app).get("/health/ready")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert response.json()["status"] == "unready"
 
 
 def test_request_id_is_preserved_and_trace_header_is_safe() -> None:
@@ -76,6 +113,20 @@ def test_metrics_endpoint_exposes_http_request_metric() -> None:
 
     assert response.status_code == 200
     assert "lifecurriculum_http_requests_total" in response.text
+
+
+def test_metrics_endpoint_requires_configured_token() -> None:
+    original_env = settings.app_env
+    original_token = settings.metrics_access_token
+    settings.app_env = "production"
+    settings.metrics_access_token = "test-secret"
+    try:
+        client = TestClient(app)
+        assert client.get("/metrics").status_code == 403
+        assert client.get("/metrics", headers={"X-Metrics-Token": "test-secret"}).status_code == 200
+    finally:
+        settings.app_env = original_env
+        settings.metrics_access_token = original_token
 
 
 def test_validation_errors_have_stable_code_and_safe_details() -> None:

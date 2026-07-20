@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import date
@@ -8,10 +9,11 @@ import structlog
 from fastapi import Depends, FastAPI, Header, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse, Response
+from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from opentelemetry import trace
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from pydantic import BaseModel, Field
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -148,8 +150,22 @@ async def live_health() -> dict[str, str]:
 
 
 @app.get("/health/ready", tags=["operational"])
-async def ready_health() -> dict[str, str]:
-    return {"status": "ok", "service": "lifecurriculum-api"}
+async def ready_health(
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+) -> Response:
+    """Check database reachability with a bounded probe before accepting traffic."""
+    try:
+        await asyncio.wait_for(session.execute(text("SELECT 1")), timeout=1.0)
+    except Exception:
+        logger.warning("application.readiness.failed", exc_info=True)
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unready", "service": "lifecurriculum-api"},
+        )
+    return JSONResponse(
+        status_code=200,
+        content={"status": "ok", "service": "lifecurriculum-api"},
+    )
 
 
 @app.get("/phases", response_model=list[PublishedPhaseModule], tags=["phases"])
@@ -346,7 +362,12 @@ async def roadmap_action(
 
 
 @app.get("/metrics", include_in_schema=False)
-async def metrics() -> PlainTextResponse:
+async def metrics(metrics_token: str | None = Header(None, alias="X-Metrics-Token")) -> Response:
+    configured_token = settings.metrics_access_token
+    if settings.app_env == "production" and not configured_token:
+        return Response(status_code=404)
+    if configured_token and metrics_token != configured_token:
+        return Response(status_code=403)
     return PlainTextResponse(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
