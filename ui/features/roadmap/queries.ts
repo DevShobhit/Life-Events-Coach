@@ -9,6 +9,32 @@ import { getRoadmap } from "./api";
 import { roadmapQueryKeys } from "./query-keys";
 import type { RoadmapResponse } from "./types";
 
+type RoadmapOfflineWriter = {
+  write: (
+    userId: string,
+    phaseId: string,
+    stage: string,
+    roadmap: RoadmapResponse,
+  ) => void;
+};
+
+export function persistRoadmapOffline(
+  store: RoadmapOfflineWriter | null | undefined,
+  userId: string,
+  phaseId: string,
+  stage: string,
+  roadmap: RoadmapResponse,
+) {
+  if (!store) return;
+  try {
+    store.write(userId, phaseId, stage, roadmap);
+  } catch (error) {
+    logDevelopment("roadmap.cache.write.failed", {
+      errorType: error instanceof Error ? error.name : "unknown",
+    });
+  }
+}
+
 export function roadmapQueryOptions(
   userId: string,
   phaseId: string,
@@ -20,7 +46,13 @@ export function roadmapQueryOptions(
       logDevelopment("roadmap.query.started");
       try {
         const roadmap = await getRoadmap(userId, phaseId, stage, signal);
-        browserRoadmapOfflineStore()?.write(userId, phaseId, stage, roadmap);
+        persistRoadmapOffline(
+          browserRoadmapOfflineStore(),
+          userId,
+          phaseId,
+          stage,
+          roadmap,
+        );
         logDevelopment("roadmap.query.completed", {
           hasCurrent: Boolean(roadmap.current),
           nowCount: roadmap.now.length,
