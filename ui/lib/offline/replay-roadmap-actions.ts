@@ -4,7 +4,7 @@ import type { QueuedAction } from "./roadmap-cache";
 type ReplayInput = {
   replay: (execute: (action: QueuedAction) => Promise<void>) => Promise<void>;
   submit: (action: QueuedAction) => Promise<unknown>;
-  refresh: (userId: string, phaseId: string) => Promise<void>;
+  refresh: (userId: string, phaseId: string, stage: string) => Promise<void>;
 };
 
 export async function replayQueuedRoadmapActions({
@@ -14,7 +14,7 @@ export async function replayQueuedRoadmapActions({
 }: ReplayInput) {
   const affectedRoadmaps = new Map<
     string,
-    Pick<QueuedAction, "userId" | "phaseId">
+    Pick<QueuedAction, "userId" | "phaseId" | "stage">
   >();
 
   const replayAction = async (action: QueuedAction) => {
@@ -22,18 +22,21 @@ export async function replayQueuedRoadmapActions({
     affectedRoadmaps.set(roadmapKey(action), {
       userId: action.userId,
       phaseId: action.phaseId,
+      stage: action.stage,
     });
   };
 
   await replay(replayAction);
 
   for (const roadmap of affectedRoadmaps.values()) {
-    await refresh(roadmap.userId, roadmap.phaseId);
+    await refresh(roadmap.userId, roadmap.phaseId, roadmap.stage);
   }
 }
 
-function roadmapKey(action: Pick<QueuedAction, "userId" | "phaseId">) {
-  return `${action.userId}:${action.phaseId}`;
+function roadmapKey(
+  action: Pick<QueuedAction, "userId" | "phaseId" | "stage">,
+) {
+  return `${action.userId}:${action.phaseId}:${action.stage}`;
 }
 
 export function toRoadmapActionPayload(action: QueuedAction): {

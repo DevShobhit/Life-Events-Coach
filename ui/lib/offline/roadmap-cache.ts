@@ -3,6 +3,7 @@ import type { CardAction, RoadmapResponse } from "@/lib/api/types";
 export type QueuedAction = {
   userId: string;
   phaseId: string;
+  stage: string;
   concernId: string;
   action: CardAction;
   idempotencyKey: string;
@@ -14,23 +15,36 @@ export function createRoadmapOfflineStore(
   storage: StorageLike,
   keyPrefix = "livecoach",
 ) {
-  const roadmapKey = (userId: string, phaseId: string) =>
-    `${keyPrefix}:roadmap:${userId}:${phaseId}`;
+  const roadmapKey = (userId: string, phaseId: string, stage: string) =>
+    `${keyPrefix}:roadmap:${userId}:${phaseId}:${stage}`;
   const queueKey = `${keyPrefix}:actions`;
 
   return {
-    read(userId: string, phaseId: string): RoadmapResponse | null {
-      const raw = storage.getItem(roadmapKey(userId, phaseId));
+    read(
+      userId: string,
+      phaseId: string,
+      stage: string,
+    ): RoadmapResponse | null {
+      const key = roadmapKey(userId, phaseId, stage);
+      const raw = storage.getItem(key);
       if (!raw) return null;
       try {
         return JSON.parse(raw) as RoadmapResponse;
       } catch {
-        storage.removeItem(roadmapKey(userId, phaseId));
+        storage.removeItem(key);
         return null;
       }
     },
-    write(userId: string, phaseId: string, roadmap: RoadmapResponse) {
-      storage.setItem(roadmapKey(userId, phaseId), JSON.stringify(roadmap));
+    write(
+      userId: string,
+      phaseId: string,
+      stage: string,
+      roadmap: RoadmapResponse,
+    ) {
+      storage.setItem(
+        roadmapKey(userId, phaseId, stage),
+        JSON.stringify(roadmap),
+      );
     },
     queued(): QueuedAction[] {
       const raw = storage.getItem(queueKey);

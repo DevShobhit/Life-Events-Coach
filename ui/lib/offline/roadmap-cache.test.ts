@@ -23,8 +23,22 @@ const roadmap: RoadmapResponse = {
 describe("roadmap offline store", () => {
   test("caches and reads the last roadmap", () => {
     const store = createRoadmapOfflineStore(memoryStorage());
-    store.write("user", "relocation", roadmap);
-    expect(store.read("user", "relocation")).toEqual(roadmap);
+    store.write("user", "relocation", "arrived", roadmap);
+    expect(store.read("user", "relocation", "arrived")).toEqual(roadmap);
+  });
+
+  test("keeps cached roadmaps isolated by stage", () => {
+    const store = createRoadmapOfflineStore(memoryStorage());
+    const arrivedRoadmap = { ...roadmap, version: 1 };
+    const preparingRoadmap = { ...roadmap, version: 2 };
+
+    store.write("user", "relocation", "arrived", arrivedRoadmap);
+    store.write("user", "relocation", "preparing", preparingRoadmap);
+
+    expect(store.read("user", "relocation", "arrived")).toEqual(arrivedRoadmap);
+    expect(store.read("user", "relocation", "preparing")).toEqual(
+      preparingRoadmap,
+    );
   });
 
   test("deduplicates and replays queued actions", async () => {

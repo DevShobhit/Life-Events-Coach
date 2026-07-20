@@ -6,6 +6,7 @@ function action(input: Partial<QueuedAction> = {}): QueuedAction {
   return {
     userId: "user",
     phaseId: "phase",
+    stage: "arrived",
     concernId: "concern",
     action: "done",
     idempotencyKey: crypto.randomUUID(),

@@ -29,14 +29,14 @@ export function useRoadmapActionMutation(
 ) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationKey: ["roadmap", "action", userId, phaseId],
+    mutationKey: ["roadmap", "action", userId, phaseId, stage],
     mutationFn: (input: {
       concernId: string;
       action: CardAction;
       idempotencyKey: string;
     }) => submitRoadmapAction(userId, phaseId, stage, input),
     onMutate: async (input) => {
-      const queryKey = roadmapQueryKeys.detail(userId, phaseId);
+      const queryKey = roadmapQueryKeys.detail(userId, phaseId, stage);
       await queryClient.cancelQueries({ queryKey });
       const previous = queryClient.getQueryData<RoadmapResponse>(queryKey);
       queryClient.setQueryData(
@@ -46,9 +46,9 @@ export function useRoadmapActionMutation(
       return { previous, queryKey };
     },
     onSuccess: (roadmap, _input, context) => {
-      browserRoadmapOfflineStore()?.write(userId, phaseId, roadmap);
+      browserRoadmapOfflineStore()?.write(userId, phaseId, stage, roadmap);
       queryClient.setQueryData(
-        context?.queryKey ?? roadmapQueryKeys.detail(userId, phaseId),
+        context?.queryKey ?? roadmapQueryKeys.detail(userId, phaseId, stage),
         roadmap,
       );
     },
@@ -57,6 +57,7 @@ export function useRoadmapActionMutation(
         browserRoadmapOfflineStore()?.enqueue({
           userId,
           phaseId,
+          stage,
           concernId: input.concernId,
           action: input.action,
           idempotencyKey: input.idempotencyKey,
@@ -66,7 +67,12 @@ export function useRoadmapActionMutation(
           context.queryKey,
         );
         if (optimistic)
-          browserRoadmapOfflineStore()?.write(userId, phaseId, optimistic);
+          browserRoadmapOfflineStore()?.write(
+            userId,
+            phaseId,
+            stage,
+            optimistic,
+          );
         return;
       }
       if (context) queryClient.setQueryData(context.queryKey, context.previous);

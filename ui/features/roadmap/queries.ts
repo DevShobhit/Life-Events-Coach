@@ -17,14 +17,14 @@ export function roadmapQueryOptions(
     queryKey: roadmapQueryKeys.detail(userId, phaseId, stage),
     queryFn: async ({ signal }: { signal?: AbortSignal }) => {
       const roadmap = await getRoadmap(userId, phaseId, stage, signal);
-      browserRoadmapOfflineStore()?.write(userId, phaseId, roadmap);
+      browserRoadmapOfflineStore()?.write(userId, phaseId, stage, roadmap);
       return roadmap;
     },
     enabled: Boolean(userId.trim() && phaseId.trim() && stage.trim()),
     staleTime: ROADMAP_QUERY_STALE_TIME_MS,
     refetchOnReconnect: false,
     placeholderData: () =>
-      browserRoadmapOfflineStore()?.read(userId, phaseId) ?? undefined,
+      browserRoadmapOfflineStore()?.read(userId, phaseId, stage) ?? undefined,
     meta: { getUserFacingError },
   };
 }
