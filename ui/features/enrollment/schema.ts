@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { PhaseModule } from "@/lib/api/types";
-import { fieldIsRequired } from "./phase-metadata";
+import { fieldIsRequired, stageFieldKey } from "./phase-metadata";
 
 export const enrollmentSchema = z.object({
   stage: z.string().trim().min(1, "Tell us a little about your current stage."),
@@ -9,7 +9,7 @@ export const enrollmentSchema = z.object({
 
 export function createEnrollmentSchema(phaseModule?: PhaseModule) {
   const stageRequired = phaseModule
-    ? fieldIsRequired(phaseModule, stageMetadataKey(phaseModule), {
+    ? fieldIsRequired(phaseModule, stageFieldKey(phaseModule), {
         stage: true,
       })
     : true;
@@ -45,14 +45,6 @@ export function createEnrollmentSchema(phaseModule?: PhaseModule) {
       );
 
   return z.object({ stage, context });
-}
-
-function stageMetadataKey(module: PhaseModule) {
-  return (
-    module.onboarding_fields.find((field) =>
-      ["stage", "relocation_stage"].includes(field),
-    ) ?? "stage"
-  );
 }
 
 export type EnrollmentFormInput = z.input<typeof enrollmentSchema>;

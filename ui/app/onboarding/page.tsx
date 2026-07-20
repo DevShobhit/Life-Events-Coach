@@ -18,38 +18,18 @@ import { useEnrollmentSaveMutation } from "@/features/enrollment/mutations";
 import {
   type EnrollmentFormInput,
   type EnrollmentFormValues,
-  enrollmentSchema,
+  createEnrollmentSchema,
 } from "@/features/enrollment/schema";
+import {
+  fieldIsRequired,
+  fieldLabel,
+  fieldMetadata,
+  stageMetadata,
+} from "@/features/enrollment/phase-metadata";
 import { PhaseSelector } from "@/features/phases/components/phase-selector";
 import { usePublishedPhasesQuery } from "@/features/phases/queries";
 import { useSessionStore } from "@/lib/state/session";
 import { getUserFacingError } from "@/lib/ux/feedback";
-
-function fieldLabel(field: string) {
-  return field
-    .split(/[-_]/u)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function fieldMetadata(
-  phase:
-    | {
-        module: {
-          onboarding_field_metadata?: {
-            key: string;
-            label: string;
-            description?: string;
-          }[];
-        };
-      }
-    | undefined,
-  field: string,
-) {
-  return phase?.module.onboarding_field_metadata?.find(
-    (item) => item.key === field,
-  );
-}
 
 export default function OnboardingPage() {
   const userId = useSessionStore((state) => state.developmentUserId);
@@ -66,9 +46,10 @@ export default function OnboardingPage() {
   const mutation = useEnrollmentSaveMutation(
     userId,
     selectedPhaseId ?? activePhase,
+    selectedPhase?.module,
   );
   const form = useForm<EnrollmentFormInput, unknown, EnrollmentFormValues>({
-    resolver: zodResolver(enrollmentSchema),
+    resolver: zodResolver(createEnrollmentSchema(selectedPhase?.module)),
     defaultValues: { context: {}, stage: "" },
   });
 
@@ -80,6 +61,16 @@ export default function OnboardingPage() {
   const optionalFields = (selectedPhase?.module.onboarding_fields ?? []).filter(
     (field) => !["stage", "relocation_stage"].includes(field),
   );
+  const configuredStage = selectedPhase
+    ? stageMetadata(selectedPhase.module)
+    : undefined;
+  const stageRequired = selectedPhase
+    ? fieldIsRequired(
+        selectedPhase.module,
+        configuredStage?.key ?? "stage",
+        { stage: true },
+      )
+    : true;
 
   const continueToNow = async (values: EnrollmentFormValues) => {
     if (!selectedPhaseId) return;
@@ -133,38 +124,64 @@ export default function OnboardingPage() {
           <FieldGroup>
             <Field data-invalid={Boolean(form.formState.errors.stage)}>
               <FieldLabel htmlFor="stage">
-                What best describes your current stage?
+                {configuredStage?.label ?? "What best describes your current stage?"}{" "}
+                <span className="font-normal">
+                  ({stageRequired ? "required" : "optional"})
+                </span>
               </FieldLabel>
               <Input
                 aria-invalid={Boolean(form.formState.errors.stage)}
+                aria-describedby="stage-description stage-error"
                 autoComplete="off"
                 id="stage"
                 placeholder="For example: preparing to move…"
+                required={stageRequired}
                 {...form.register("stage")}
               />
-              <FieldDescription>
-                This required answer helps place the first step.
+              <FieldDescription id="stage-description">
+                {configuredStage?.description ??
+                  "This answer helps place the first step."}
               </FieldDescription>
-              <FieldError errors={[form.formState.errors.stage]} />
+              <FieldError
+                id="stage-error"
+                errors={[form.formState.errors.stage]}
+              />
             </Field>
             {optionalFields.map((field) => {
-              const metadata = fieldMetadata(selectedPhase, field);
+              const metadata = selectedPhase
+                ? fieldMetadata(selectedPhase.module, field)
+                : undefined;
               const label = metadata?.label ?? fieldLabel(field);
+              const required = selectedPhase
+                ? fieldIsRequired(selectedPhase.module, field)
+                : false;
+              const error = form.formState.errors.context?.[field];
+              const descriptionId = `context-${field}-description`;
+              const errorId = `context-${field}-error`;
 
               return (
-                <Field key={field}>
+                <Field data-invalid={Boolean(error)} key={field}>
                   <FieldLabel htmlFor={`context-${field}`}>
-                    {label} <span className="font-normal">(optional)</span>
+                    {label}{" "}
+                    <span className="font-normal">
+                      ({required ? "required" : "optional"})
+                    </span>
                   </FieldLabel>
                   <Input
+                    aria-describedby={`${descriptionId} ${errorId}`}
+                    aria-invalid={Boolean(error)}
                     autoComplete="off"
                     id={`context-${field}`}
                     placeholder={`Add your ${label.toLowerCase()}…`}
+                    required={required}
                     {...form.register(`context.${field}`)}
                   />
                   {metadata?.description ? (
-                    <FieldDescription>{metadata.description}</FieldDescription>
+                    <FieldDescription id={descriptionId}>
+                      {metadata.description}
+                    </FieldDescription>
                   ) : null}
+                  <FieldError id={errorId} errors={[error]} />
                 </Field>
               );
             })}

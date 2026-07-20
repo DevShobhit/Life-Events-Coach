@@ -1,6 +1,7 @@
 from collections.abc import Mapping
 from datetime import date
 from typing import Any, Protocol
+from urllib.parse import urlparse
 
 from pydantic import ValidationError
 
@@ -35,6 +36,34 @@ class PhaseModuleCache:
         self._modules.pop(phase_id, None)
 
 
+def validate_launch_content(module: PhaseModule, *, production: bool = False) -> dict[str, list[str]]:
+    """Validate release-only content requirements without changing test fixtures.
+
+    The synthetic fixture remains usable by local tests.  Callers promoting
+    content to production must opt in explicitly, which enables the stricter
+    concern-count, citation-domain, visual, and freshness checks.
+    """
+    if not production:
+        return {}
+    errors: dict[str, list[str]] = {}
+    if len(module.concerns) < 40:
+        errors.setdefault("concerns", []).append(
+            "production modules require at least 40 reviewed concerns"
+        )
+    blocked_hosts = {"localhost", "test", "test.local", "example.com", "example.org", "example.net", "example.gov"}
+    for concern in module.concerns:
+        host = (urlparse(str(concern.citation.url)).hostname or "").lower()
+        if host in blocked_hosts or host.endswith(".example.com") or host.endswith(".example.org") or host.endswith(".example.net") or host.endswith(".example.gov"):
+            errors.setdefault("citation.url", []).append(
+                f"citation {concern.citation.id} uses a test/example domain"
+            )
+        if concern.card.visual_url is None:
+            errors.setdefault("card.visual_url", []).append(
+                f"concern {concern.id} requires a primary visual for production"
+            )
+    return errors
+
+
 class PhaseModulePublisher:
     def __init__(
         self,
@@ -52,6 +81,7 @@ class PhaseModulePublisher:
         *,
         version: int,
         today: date | None = None,
+        production: bool = False,
     ) -> PhaseModule:
         errors: dict[str, list[str]] = {}
         try:
@@ -68,6 +98,7 @@ class PhaseModulePublisher:
                 errors.setdefault("reviewed_on", []).append(
                     f"citation {concern.citation.id} cannot be reviewed in the future"
                 )
+        errors.update(validate_launch_content(module, production=production))
         if errors:
             raise PublicationError(errors)
 

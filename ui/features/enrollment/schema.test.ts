@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { PhaseModule } from "@/lib/api/types";
+import { enrollmentContextFromForm } from "./phase-metadata";
 import { createEnrollmentSchema, enrollmentSchema } from "./schema";
 
 const phase: PhaseModule = {
@@ -83,5 +84,40 @@ describe("enrollment schema", () => {
     if (!result.success) {
       expect(result.error.issues[0]?.path).toEqual(["context", "destination"]);
     }
+  });
+
+  test("matches the onboarding relocation contract", () => {
+    const result = createEnrollmentSchema(phase).safeParse({
+      stage: "",
+      context: { origin_country: "" },
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            path: ["stage"],
+            message: "Tell us a little about your current stage.",
+          }),
+          expect.objectContaining({
+            path: ["context", "origin_country"],
+            message: "This field is required.",
+          }),
+        ]),
+      );
+    }
+  });
+
+  test("preserves the configured relocation stage key in the onboarding payload", () => {
+    expect(
+      enrollmentContextFromForm(phase, {
+        stage: "preparing",
+        context: { origin_country: "India" },
+      }),
+    ).toEqual({
+      origin_country: "India",
+      relocation_stage: "preparing",
+    });
   });
 });

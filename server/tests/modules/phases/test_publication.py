@@ -6,6 +6,7 @@ from app.modules.phases.publication import (
     PhaseModuleCache,
     PhaseModulePublisher,
     PublicationError,
+    validate_launch_content,
 )
 from app.modules.phases.schemas import PhaseModule
 
@@ -91,3 +92,19 @@ async def test_future_review_date_is_rejected_before_repository_write() -> None:
         await publisher.publish(invalid, version=1, today=date(2026, 7, 18))
 
     assert repository.published == []
+
+
+def test_production_content_gate_rejects_fixture_domains_small_banks_and_missing_visuals() -> None:
+    module = PhaseModule.model_validate(module_payload())
+
+    errors = validate_launch_content(module, production=True)
+
+    assert "concerns" in errors
+    assert "citation.url" in errors
+    assert "card.visual_url" in errors
+
+
+def test_non_production_fixture_is_allowed_by_content_gate() -> None:
+    module = PhaseModule.model_validate(module_payload())
+
+    assert validate_launch_content(module, production=False) == {}
