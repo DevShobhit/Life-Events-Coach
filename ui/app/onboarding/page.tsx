@@ -33,10 +33,22 @@ function fieldLabel(field: string) {
 }
 
 function fieldMetadata(
-  phase: { module: { onboarding_field_metadata?: { key: string; label: string; description?: string }[] } } | undefined,
+  phase:
+    | {
+        module: {
+          onboarding_field_metadata?: {
+            key: string;
+            label: string;
+            description?: string;
+          }[];
+        };
+      }
+    | undefined,
   field: string,
 ) {
-  return phase?.module.onboarding_field_metadata?.find((item) => item.key === field);
+  return phase?.module.onboarding_field_metadata?.find(
+    (item) => item.key === field,
+  );
 }
 
 export default function OnboardingPage() {
