@@ -135,4 +135,18 @@ describe("LifeCurriculumClient", () => {
 
     expect(attempts).toBe(1);
   });
+
+  test("logs redacted route paths when transport requests fail", async () => {
+    const fetcher = async () => {
+      throw new TypeError("network unavailable");
+    };
+    const client = new LifeCurriculumClient({
+      baseUrl: "https://api.example.test",
+      fetcher,
+    });
+
+    await expect(client.roadmap("private-user", "relocation")).rejects.toThrow(
+      "network unavailable",
+    );
+  });
 });

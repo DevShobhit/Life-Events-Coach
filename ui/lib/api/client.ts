@@ -121,22 +121,35 @@ export class LifeCurriculumClient {
     const requestId = crypto.randomUUID();
     const { userId, ...requestInit } = options;
     const method = requestInit.method ?? "GET";
+    const logPath = redactPath(path);
     const startedAt = performance.now();
     apiLogger.debug("api_request_started", {
       method,
-      path,
+      path: logPath,
       requestId,
     });
-    const response = await this.fetcher(`${this.baseUrl}${path}`, {
-      ...requestInit,
-      body: requestInit.body ? JSON.stringify(requestInit.body) : undefined,
-      headers: {
-        "Content-Type": "application/json",
-        "X-Request-ID": requestId,
-        ...(userId ? { "X-User-ID": userId } : {}),
-        ...requestInit.headers,
-      },
-    });
+    let response: Response;
+    try {
+      response = await this.fetcher(`${this.baseUrl}${path}`, {
+        ...requestInit,
+        body: requestInit.body ? JSON.stringify(requestInit.body) : undefined,
+        headers: {
+          "Content-Type": "application/json",
+          "X-Request-ID": requestId,
+          ...(userId ? { "X-User-ID": userId } : {}),
+          ...requestInit.headers,
+        },
+      });
+    } catch (error) {
+      apiLogger.warn("api_request_failed", {
+        method,
+        path: logPath,
+        requestId,
+        durationMs: Math.round(performance.now() - startedAt),
+        errorType: error instanceof Error ? error.name : "unknown",
+      });
+      throw error;
+    }
 
     if (!response.ok) {
       const body = (await response.json().catch(() => null)) as {
@@ -144,7 +157,7 @@ export class LifeCurriculumClient {
       } | null;
       apiLogger.warn("api_request_failed", {
         method,
-        path,
+        path: logPath,
         requestId,
         status: response.status,
         durationMs: Math.round(performance.now() - startedAt),
@@ -159,13 +172,19 @@ export class LifeCurriculumClient {
 
     apiLogger.debug("api_request_succeeded", {
       method,
-      path,
+      path: logPath,
       requestId,
       status: response.status,
       durationMs: Math.round(performance.now() - startedAt),
     });
     return (await response.json()) as T;
   }
+}
+
+function redactPath(path: string): string {
+  return path
+    .replace(/^(\/(?:roadmap|ask|enrollment))\/[^/]+/, "$1/:user")
+    .replace(/\/roadmap-folds\/[^/]+$/, "/roadmap-folds/:concern");
 }
 
 export const apiClient = new LifeCurriculumClient();
