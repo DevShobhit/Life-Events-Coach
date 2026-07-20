@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { ApiError } from "@/lib/api/errors";
-import { offlineQueuedMessage, optimisticallyRemove, roadmapMutationError } from "./mutations";
+import {
+  offlineQueuedMessage,
+  optimisticallyRemove,
+  roadmapMutationError,
+  runOfflineRoadmapOperation,
+} from "./mutations";
 import type { RoadmapResponse } from "./types";
 
 const roadmap: RoadmapResponse = {
@@ -37,6 +42,14 @@ const roadmap: RoadmapResponse = {
 };
 
 describe("roadmap optimistic updates", () => {
+  test("does not throw when offline storage fails during a mutation callback", () => {
+    expect(() =>
+      runOfflineRoadmapOperation(() => {
+        throw new Error("storage unavailable");
+      }),
+    ).not.toThrow();
+  });
+
   test("promotes the next card after removing the acted-on card", () => {
     const next = optimisticallyRemove(roadmap, "first");
     expect(next?.now.map((card) => card.concern_id)).toEqual(["second"]);

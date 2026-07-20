@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { browserRoadmapOfflineStore } from "@/lib/offline/roadmap-cache";
+import { logDevelopment } from "@/lib/logging/logger";
 import {
   getUserFacingError,
   shouldQueueRoadmapAction,
@@ -12,6 +13,16 @@ import type { CardAction, RoadmapResponse } from "./types";
 
 export const offlineQueuedMessage =
   "Saved on this device. We will sync the change when the connection returns.";
+
+export function runOfflineRoadmapOperation(operation: () => void) {
+  try {
+    operation();
+  } catch (error) {
+    logDevelopment("roadmap.cache.operation.failed", {
+      errorType: error instanceof Error ? error.name : "unknown",
+    });
+  }
+}
 
 export function optimisticallyRemove(
   roadmap: RoadmapResponse | undefined,
@@ -46,7 +57,9 @@ export function useRoadmapActionMutation(
       return { previous, queryKey };
     },
     onSuccess: (roadmap, _input, context) => {
-      browserRoadmapOfflineStore()?.write(userId, phaseId, stage, roadmap);
+      runOfflineRoadmapOperation(() =>
+        browserRoadmapOfflineStore()?.write(userId, phaseId, stage, roadmap),
+      );
       queryClient.setQueryData(
         context?.queryKey ?? roadmapQueryKeys.detail(userId, phaseId, stage),
         roadmap,
@@ -54,24 +67,28 @@ export function useRoadmapActionMutation(
     },
     onError: (error, input, context) => {
       if (shouldQueueRoadmapAction(error)) {
-        browserRoadmapOfflineStore()?.enqueue({
-          userId,
-          phaseId,
-          stage,
-          concernId: input.concernId,
-          action: input.action,
-          idempotencyKey: input.idempotencyKey,
-        });
+        runOfflineRoadmapOperation(() =>
+          browserRoadmapOfflineStore()?.enqueue({
+            userId,
+            phaseId,
+            stage,
+            concernId: input.concernId,
+            action: input.action,
+            idempotencyKey: input.idempotencyKey,
+          }),
+        );
         if (!context) return;
         const optimistic = queryClient.getQueryData<RoadmapResponse>(
           context.queryKey,
         );
         if (optimistic)
-          browserRoadmapOfflineStore()?.write(
-            userId,
-            phaseId,
-            stage,
-            optimistic,
+          runOfflineRoadmapOperation(() =>
+            browserRoadmapOfflineStore()?.write(
+              userId,
+              phaseId,
+              stage,
+              optimistic,
+            ),
           );
         return;
       }
