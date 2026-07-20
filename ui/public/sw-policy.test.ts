@@ -12,6 +12,7 @@ async function loadWorker() {
   const listeners = new Map<string, (event: WorkerEvent) => void>();
   const cacheEntries = new Map<string, Response>();
   const deletedCaches: string[] = [];
+  let skipWaitingCalled = false;
   const cache = {
     put: async (request: Request, response: Response) => {
       cacheEntries.set(request.url, response);
@@ -40,7 +41,9 @@ async function loadWorker() {
   globalThis.self = {
     location: { origin: "https://app.test" },
     clients: { claim: async () => undefined },
-    skipWaiting: () => undefined,
+    skipWaiting: () => {
+      skipWaitingCalled = true;
+    },
     addEventListener: (name: string, handler: (event: WorkerEvent) => void) => {
       listeners.set(name, handler);
     },
@@ -50,8 +53,11 @@ async function loadWorker() {
   return {
     listeners,
     cacheEntries,
-    deletedCaches,
-    responses,
+      deletedCaches,
+      responses,
+      get skipWaitingCalled() {
+        return skipWaitingCalled;
+      },
     restore: () => {
       globalThis.fetch = originalFetch;
       globalThis.caches = originalCaches;
@@ -115,6 +121,40 @@ describe("service worker cache policy", () => {
     expect(respond(api)).toBeUndefined();
     expect(respond(mutation)).toBeUndefined();
     expect([...worker.cacheEntries.keys()]).toEqual([navigation.url, asset.url]);
+    worker.restore();
+  });
+
+  test("installs immediately and serves cached documents during offline reloads", async () => {
+    const worker = await loadWorker();
+    const navigation = requestWithDestination("https://app.test/horizon", "document");
+    const cachedDocument = { ok: true, type: "basic", clone: () => cachedDocument } as unknown as Response;
+    worker.cacheEntries.set(navigation.url, cachedDocument);
+
+    worker.listeners.get("install")?.({});
+    expect(worker.skipWaitingCalled).toBe(true);
+
+    let responsePromise: Promise<Response> | undefined;
+    worker.listeners.get("fetch")?.({
+      request: navigation,
+      respondWith: (promise) => {
+        responsePromise = promise;
+      },
+    });
+    expect(await responsePromise).toBe(cachedDocument);
+    worker.restore();
+  });
+
+  test("does not invent a response for an uncached offline document", async () => {
+    const worker = await loadWorker();
+    const navigation = requestWithDestination("https://app.test/missing", "document");
+    let responsePromise: Promise<Response> | undefined;
+    worker.listeners.get("fetch")?.({
+      request: navigation,
+      respondWith: (promise) => {
+        responsePromise = promise;
+      },
+    });
+    await expect(responsePromise).rejects.toThrow("network unavailable");
     worker.restore();
   });
 });
