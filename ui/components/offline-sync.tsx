@@ -86,12 +86,20 @@ export function OfflineSync() {
       });
     };
 
-    void replay();
-    window.addEventListener("online", replay);
+    const replayWithDiagnostics = () => {
+      void replay().catch((error: unknown) => {
+        logDevelopment("offline.replay.failed", {
+          errorType: error instanceof Error ? error.name : "unknown",
+        });
+      });
+    };
+
+    replayWithDiagnostics();
+    window.addEventListener("online", replayWithDiagnostics);
     return () => {
       disposed = true;
       cleanupRegistration();
-      window.removeEventListener("online", replay);
+      window.removeEventListener("online", replayWithDiagnostics);
     };
   }, []);
 

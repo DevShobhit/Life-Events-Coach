@@ -8,4 +8,10 @@ describe("service worker registration lifecycle", () => {
     expect(source).toContain('removeEventListener("statechange"');
     expect(source).toContain("service_worker.state_changed");
   });
+
+  test("reports replay failures without leaving an unhandled promise", () => {
+    expect(source).toContain("offline.replay.failed");
+    expect(source).toContain("replayWithDiagnostics");
+    expect(source).toContain("removeEventListener(\"online\", replayWithDiagnostics)");
+  });
 });
