@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { createRoadmapOfflineStore } from "@/lib/offline/roadmap-cache";
 import { ROADMAP_QUERY_STALE_TIME_MS } from "@/lib/query/query-client";
 import { roadmapQueryOptions } from "./queries";
 import { roadmapQueryKeys } from "./query-keys";
@@ -41,18 +42,14 @@ describe("roadmap query keys", () => {
 
   test("keeps query keys and offline placeholders isolated by stage", () => {
     const storage = memoryStorage();
+    const store = createRoadmapOfflineStore(storage);
+    const originalWindow = globalThis.window;
     Object.defineProperty(globalThis, "window", {
       configurable: true,
       value: { localStorage: storage },
     });
-    storage.setItem(
-      "livecoach:roadmap:user:phase:arrived",
-      JSON.stringify({ ...roadmap, version: 1 }),
-    );
-    storage.setItem(
-      "livecoach:roadmap:user:phase:preparing",
-      JSON.stringify({ ...roadmap, version: 2 }),
-    );
+    store.write("user", "phase", "arrived", { ...roadmap, version: 1 });
+    store.write("user", "phase", "preparing", { ...roadmap, version: 2 });
 
     const arrived = roadmapQueryOptions("user", "phase", "arrived");
     const preparing = roadmapQueryOptions("user", "phase", "preparing");
@@ -60,5 +57,10 @@ describe("roadmap query keys", () => {
     expect(arrived.queryKey).not.toEqual(preparing.queryKey);
     expect(arrived.placeholderData?.()).toMatchObject({ version: 1 });
     expect(preparing.placeholderData?.()).toMatchObject({ version: 2 });
+
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: originalWindow,
+    });
   });
 });

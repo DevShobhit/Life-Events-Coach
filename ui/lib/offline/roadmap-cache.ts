@@ -9,7 +9,6 @@ export type QueuedAction = {
   idempotencyKey: string;
 };
 
-const queuedStages = new Set(["arrived", "preparing", "planning"]);
 const queuedActions = new Set<CardAction>([
   "done",
   "skip",
@@ -39,8 +38,10 @@ function normalizeQueuedAction(value: unknown): QueuedAction | null {
   ) {
     return null;
   }
-  const stage = candidate.stage ?? "arrived";
-  if (typeof stage !== "string" || !queuedStages.has(stage)) return null;
+  const stageValue = candidate.stage ?? "arrived";
+  if (typeof stageValue !== "string") return null;
+  const stage = stageValue.trim();
+  if (!stage) return null;
   if (
     typeof candidate.action !== "string" ||
     !queuedActions.has(candidate.action as CardAction)

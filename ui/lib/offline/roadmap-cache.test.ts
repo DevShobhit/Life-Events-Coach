@@ -89,7 +89,8 @@ describe("roadmap offline store", () => {
           idempotencyKey: "legacy-key",
         },
         { userId: "spoofed", action: "done" },
-        { userId: "user", phaseId: "phase", stage: "unknown", action: "done" },
+        { userId: "user", phaseId: "phase", stage: "   ", action: "done" },
+        { userId: "user", phaseId: "phase", stage: 42, action: "done" },
       ]),
     );
     const store = createRoadmapOfflineStore(storage);
@@ -103,6 +104,29 @@ describe("roadmap offline store", () => {
         concernId: "legacy",
         action: "done",
         idempotencyKey: "legacy-key",
+      },
+    ]);
+  });
+
+  test("accepts non-empty custom stages", () => {
+    const store = createRoadmapOfflineStore(memoryStorage());
+    store.enqueue({
+      userId: "user",
+      phaseId: "relocation",
+      stage: " custom-stage ",
+      concernId: "housing",
+      action: "done",
+      idempotencyKey: "custom-stage-key",
+    });
+
+    expect(store.queued()).toEqual([
+      {
+        userId: "user",
+        phaseId: "relocation",
+        stage: "custom-stage",
+        concernId: "housing",
+        action: "done",
+        idempotencyKey: "custom-stage-key",
       },
     ]);
   });
