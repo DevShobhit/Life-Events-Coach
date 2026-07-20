@@ -36,7 +36,7 @@ export async function replayQueuedRoadmapActions({
 function roadmapKey(
   action: Pick<QueuedAction, "userId" | "phaseId" | "stage">,
 ) {
-  return `${action.userId}:${action.phaseId}:${action.stage}`;
+  return JSON.stringify([action.userId, action.phaseId, action.stage]);
 }
 
 export function toRoadmapActionPayload(action: QueuedAction): {

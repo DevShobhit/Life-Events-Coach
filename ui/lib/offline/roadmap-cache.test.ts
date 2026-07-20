@@ -9,6 +9,7 @@ function memoryStorage() {
     getItem: (key: string) => values.get(key) ?? null,
     setItem: (key: string, value: string) => values.set(key, value),
     removeItem: (key: string) => values.delete(key),
+    keys: () => [...values.keys()],
   };
 }
 
@@ -41,11 +42,24 @@ describe("roadmap offline store", () => {
     );
   });
 
+  test("uses an unambiguous structured key for roadmap identity", () => {
+    const storage = memoryStorage();
+    const store = createRoadmapOfflineStore(storage);
+
+    store.write("user:one", "phase", "arrived", roadmap);
+    store.write("user", "one:phase", "arrived", { ...roadmap, version: 2 });
+
+    expect(storage.keys()).toHaveLength(2);
+    expect(store.read("user:one", "phase", "arrived")).toEqual(roadmap);
+    expect(store.read("user", "one:phase", "arrived")?.version).toBe(2);
+  });
+
   test("deduplicates and replays queued actions", async () => {
     const store = createRoadmapOfflineStore(memoryStorage());
     const action = {
       userId: "user",
       phaseId: "relocation",
+      stage: "arrived",
       concernId: "housing",
       action: "done" as const,
       idempotencyKey: "key-1",
@@ -59,6 +73,50 @@ describe("roadmap offline store", () => {
       ),
     ).toBe(0);
     expect(replayed).toEqual(["key-1"]);
+    expect(store.queued()).toEqual([]);
+  });
+
+  test("normalizes legacy queued actions and discards malformed items", () => {
+    const storage = memoryStorage();
+    storage.setItem(
+      "livecoach:actions",
+      JSON.stringify([
+        {
+          userId: "user",
+          phaseId: "relocation",
+          concernId: "legacy",
+          action: "done",
+          idempotencyKey: "legacy-key",
+        },
+        { userId: "spoofed", action: "done" },
+        { userId: "user", phaseId: "phase", stage: "unknown", action: "done" },
+      ]),
+    );
+    const store = createRoadmapOfflineStore(storage);
+    const queued = store.queued();
+
+    expect(queued).toEqual([
+      {
+        userId: "user",
+        phaseId: "relocation",
+        stage: "arrived",
+        concernId: "legacy",
+        action: "done",
+        idempotencyKey: "legacy-key",
+      },
+    ]);
+  });
+
+  test("discards malformed queue JSON without submitting it", async () => {
+    const storage = memoryStorage();
+    storage.setItem("livecoach:actions", "{not-json");
+    const store = createRoadmapOfflineStore(storage);
+    const submitted: QueuedAction[] = [];
+
+    expect(await store.replay(async (action) => submitted.push(action))).toBe(
+      0,
+    );
+    expect(submitted).toEqual([]);
     expect(store.queued()).toEqual([]);
   });
 });
