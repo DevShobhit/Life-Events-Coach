@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { PhaseModule } from "@/lib/api/types";
 import {
+  fieldIsRequired,
   fieldLabel,
   fieldMetadata,
   phaseDescription,
@@ -60,5 +61,26 @@ describe("phase metadata helpers", () => {
     );
     expect(fieldMetadata(module, "missing_field")).toBeUndefined();
     expect(fieldLabel("missing_field")).toBe("Missing Field");
+  });
+
+  test("uses metadata requiredness for stage and context fields", () => {
+    expect(fieldIsRequired(module, "relocation_stage", { stage: true })).toBe(
+      true,
+    );
+    expect(fieldIsRequired(module, "origin_country")).toBe(true);
+    expect(
+      fieldIsRequired(
+        {
+          ...module,
+          onboarding_field_metadata: [
+            { key: "stage", label: "Move stage", required: false },
+            { key: "origin_country", label: "Origin", required: false },
+          ],
+        },
+        "stage",
+        { stage: true },
+      ),
+    ).toBe(false);
+    expect(fieldIsRequired(module, "unknown_field")).toBe(false);
   });
 });

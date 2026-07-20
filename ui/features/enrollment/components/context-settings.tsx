@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useEnrollmentSaveMutation } from "@/features/enrollment/mutations";
 import {
+  fieldIsRequired,
   fieldLabel,
   fieldMetadata,
   phaseDescription,
@@ -23,8 +24,8 @@ import {
 } from "@/features/enrollment/phase-metadata";
 import { useEnrollmentQuery } from "@/features/enrollment/queries";
 import {
+  createEnrollmentSchema,
   type EnrollmentFormValues,
-  enrollmentSchema,
 } from "@/features/enrollment/schema";
 import { usePublishedPhasesQuery } from "@/features/phases/queries";
 import { roadmapQueryKeys } from "@/features/roadmap/query-keys";
@@ -43,10 +44,6 @@ export function ContextSettings({
   const mutation = useEnrollmentSaveMutation(userId, phaseId);
   const setActiveStage = useSessionStore((state) => state.setActiveStage);
   const queryClient = useQueryClient();
-  const form = useForm<EnrollmentFormValues>({
-    resolver: zodResolver(enrollmentSchema),
-    defaultValues: { context: {}, stage: "" },
-  });
   const phase = phases.data?.find(
     (publishedPhase) => publishedPhase.module.phase_id === phaseId,
   );
@@ -56,6 +53,10 @@ export function ContextSettings({
       (field) => !["stage", "relocation_stage"].includes(field),
     ) ?? [];
   const configuredStage = phaseModule ? stageMetadata(phaseModule) : undefined;
+  const form = useForm<EnrollmentFormValues>({
+    resolver: zodResolver(createEnrollmentSchema(phaseModule)),
+    defaultValues: { context: {}, stage: "" },
+  });
 
   useEffect(() => {
     if (enrollment.data) {
@@ -111,7 +112,17 @@ export function ContextSettings({
             aria-invalid={Boolean(form.formState.errors.stage)}
             autoComplete="off"
             id="settings-stage"
-            required={configuredStage?.required !== false}
+            required={
+              phaseModule
+                ? fieldIsRequired(
+                    phaseModule,
+                    configuredStage?.key ?? "stage",
+                    {
+                      stage: true,
+                    },
+                  )
+                : true
+            }
             {...form.register("stage")}
           />
           <FieldDescription>
@@ -124,7 +135,9 @@ export function ContextSettings({
           const metadata = phaseModule
             ? fieldMetadata(phaseModule, field)
             : undefined;
-          const required = metadata?.required === true;
+          const required = phaseModule
+            ? fieldIsRequired(phaseModule, field)
+            : false;
 
           return (
             <Field key={field}>

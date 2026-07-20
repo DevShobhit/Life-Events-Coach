@@ -30,3 +30,14 @@ export function stageMetadata(module: PhaseModule) {
     fieldMetadata(module, "stage") ?? fieldMetadata(module, "relocation_stage")
   );
 }
+
+export function fieldIsRequired(
+  module: PhaseModule,
+  field: string,
+  options: { stage?: boolean } = {},
+) {
+  const metadata = fieldMetadata(module, field);
+  return options.stage
+    ? metadata?.required !== false
+    : metadata?.required === true;
+}
