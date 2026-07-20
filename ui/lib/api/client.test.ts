@@ -115,6 +115,20 @@ describe("LifeCurriculumClient", () => {
     );
   });
 
+  test("rejects malformed roadmap data with safe typed error", async () => {
+    const client = new LifeCurriculumClient({
+      fetcher: async () =>
+        Response.json({ phase_id: "relocation", version: 1, now: [] }),
+    });
+
+    await expect(
+      client.roadmap("dev-user", "relocation"),
+    ).rejects.toMatchObject({
+      code: "invalid_response",
+      status: 502,
+    });
+  });
+
   test("does not retry transient read failures inside the API client", async () => {
     let attempts = 0;
     const client = new LifeCurriculumClient({
@@ -151,7 +165,10 @@ describe("LifeCurriculumClient", () => {
   });
 
   test("invokes a receiver-sensitive fetch implementation with globalThis", async () => {
-    const fetcher = function (this: typeof globalThis, input: RequestInfo | URL) {
+    const fetcher = function (
+      this: typeof globalThis,
+      input: RequestInfo | URL,
+    ) {
       expect(this).toBe(globalThis);
       expect(String(input)).toContain("/phases");
       return Promise.resolve(

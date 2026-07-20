@@ -6,6 +6,7 @@ export const errorMessages = {
   gateway_timeout:
     "The approved sources took too long to respond. Please retry.",
   http_error: "The service could not complete that request. Please retry.",
+  invalid_response: "The service returned incomplete content. Please retry.",
   internal_error: "Something went wrong on our side. Please retry.",
   not_found: "That content is no longer available. Please refresh and retry.",
   validation_error: "Some details need attention before we can continue.",

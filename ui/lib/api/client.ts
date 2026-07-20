@@ -8,6 +8,7 @@ import type {
   PublishedPhaseModule,
   RoadmapResponse,
 } from "./types";
+import { isRoadmapResponse } from "./types";
 
 type ClientOptions = {
   baseUrl?: string;
@@ -41,7 +42,7 @@ export class LifeCurriculumClient {
     return this.request<RoadmapResponse>(
       `/roadmap/${encodeURIComponent(userId)}/${encodeURIComponent(phaseId)}?stage=${encodeURIComponent(stage)}`,
       { userId, signal },
-    );
+    ).then((roadmap) => this.validateRoadmapResponse(roadmap));
   }
 
   action(
@@ -58,7 +59,7 @@ export class LifeCurriculumClient {
     return this.request<RoadmapResponse>(
       `/roadmap/${encodeURIComponent(userId)}/${encodeURIComponent(phaseId)}/actions`,
       { userId, method: "POST", body: payload, signal },
-    );
+    ).then((roadmap) => this.validateRoadmapResponse(roadmap));
   }
 
   ask(userId: string, phaseId: string, question: string, signal?: AbortSignal) {
@@ -179,6 +180,13 @@ export class LifeCurriculumClient {
       durationMs: Math.round(performance.now() - startedAt),
     });
     return (await response.json()) as T;
+  }
+
+  private validateRoadmapResponse(response: RoadmapResponse): RoadmapResponse {
+    if (!isRoadmapResponse(response)) {
+      throw new ApiError("invalid_response", null, 502);
+    }
+    return response;
   }
 }
 
