@@ -2,10 +2,10 @@ import {
   Check,
   ExternalLink,
   Eye,
-  MoreHorizontal,
   Sparkles,
 } from "lucide-react";
 import Image from "next/image";
+import type { RefObject } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,12 +33,16 @@ type RoadmapCardProps = {
   card: RoadmapCardData;
   pendingAction?: RoadmapCardAction;
   onAction?: (action: RoadmapCardAction) => void;
+  onDetail?: () => void;
+  detailTriggerRef?: RefObject<HTMLButtonElement | null>;
   onMore?: () => void;
 };
 
 export function RoadmapCardView({
   card,
   onAction,
+  onDetail,
+  detailTriggerRef,
   onMore,
   pendingAction,
 }: RoadmapCardProps) {
@@ -49,7 +53,7 @@ export function RoadmapCardView({
       {card.visualUrl ? (
         <div className="aspect-[16/8] bg-muted">
           <Image
-            alt=""
+            alt={card.title}
             className="size-full object-cover"
             height={400}
             src={card.visualUrl}
@@ -76,6 +80,17 @@ export function RoadmapCardView({
           ) : null}
         </div>
         <p className="text-sm text-muted-foreground">Why now: {card.whyNow}</p>
+        {onDetail ? (
+          <Button
+            className="min-h-11 w-fit"
+            disabled={Boolean(pendingAction)}
+            onClick={onDetail}
+            ref={detailTriggerRef}
+            variant="link"
+          >
+            Go deeper
+          </Button>
+        ) : null}
       </CardHeader>
       <CardContent>
         <ul className="space-y-2 text-sm leading-6">
@@ -100,6 +115,7 @@ export function RoadmapCardView({
           >
             {card.source.title}
             <ExternalLink aria-hidden="true" className="size-3" />
+            <span className="sr-only">(opens in a new tab)</span>
           </a>
         ) : (
           <span className="text-sm text-muted-foreground">
@@ -123,14 +139,12 @@ export function RoadmapCardView({
             {pendingAction === "done" ? "Saving…" : "Done"}
           </Button>
           <Button
-            aria-label="More card actions"
-            className="min-h-11 min-w-11"
+            className="min-h-11"
             disabled={Boolean(pendingAction)}
             onClick={() => onMore?.()}
-            size="icon"
             variant="outline"
           >
-            <MoreHorizontal aria-hidden="true" />
+            Already handled
           </Button>
         </div>
       </CardFooter>

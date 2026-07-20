@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AskSheet } from "@/components/ask-sheet";
+import { InlineError } from "@/components/feedback/inline-error";
 import { RoadmapCardView } from "@/components/roadmap-card";
 import { RouteError, RouteLoading } from "@/components/route-states";
 import { RoadmapActionDialogs } from "@/features/roadmap/components/roadmap-action-dialogs";
+import { RoadmapDetailSheet } from "@/features/roadmap/components/roadmap-detail-sheet";
 import { RoadmapQueue } from "@/features/roadmap/components/roadmap-queue";
 import {
   offlineQueuedMessage,
@@ -42,6 +44,8 @@ export default function NowPage() {
   const [skipCounts, setSkipCounts] = useState<Record<string, number>>({});
   const [relevanceCard, setRelevanceCard] = useState<string | null>(null);
   const [moreCard, setMoreCard] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const detailTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   if (isLoading && !roadmap) return <RouteLoading />;
   if (error && !roadmap)
@@ -76,7 +80,10 @@ export default function NowPage() {
   };
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-6 py-10 sm:px-10">
+    <main
+      className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-6 py-10 sm:px-10"
+      id="main-content"
+    >
       <AskSheet phaseId={phaseId} userId={userId} />
       <div className="space-y-2">
         <p className="text-sm font-medium tracking-wide text-primary">TODAY</p>
@@ -88,17 +95,15 @@ export default function NowPage() {
         </p>
       </div>
       {error ? (
-        <p className="text-sm text-destructive" role="alert">
-          {error}
-        </p>
+        <InlineError message={error} onRetry={() => void query.refetch()} />
       ) : null}
       {offlineMessage ? (
-        <output className="text-sm text-muted-foreground">
+        <output aria-live="polite" className="text-sm text-muted-foreground">
           {offlineMessage}
         </output>
       ) : null}
       {isCached ? (
-        <output className="text-sm text-muted-foreground">
+        <output aria-live="polite" className="text-sm text-muted-foreground">
           Showing your last saved roadmap. We will refresh when the connection
           returns.
         </output>
@@ -107,7 +112,9 @@ export default function NowPage() {
         <div className="w-full max-w-2xl">
           <RoadmapCardView
             card={cardData}
+            detailTriggerRef={detailTriggerRef}
             onAction={(action) => void submitAction(current.concern_id, action)}
+            onDetail={() => setDetailOpen(true)}
             onMore={() => setMoreCard(current.concern_id)}
             pendingAction={
               pendingAction === "done" ||
@@ -118,6 +125,12 @@ export default function NowPage() {
             }
           />
           <RoadmapQueue cards={roadmap.now} />
+          <RoadmapDetailSheet
+            card={cardData}
+            onOpenChange={setDetailOpen}
+            open={detailOpen}
+            triggerRef={detailTriggerRef}
+          />
         </div>
       ) : (
         <output className="rounded-lg border border-dashed border-border p-8 text-center">

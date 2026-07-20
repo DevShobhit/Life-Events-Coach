@@ -125,7 +125,10 @@ export function AskSheet({
           </p>
         ) : null}
         {response ? (
-          <div className="space-y-4 border-t border-border pt-4">
+          <div
+            aria-live="polite"
+            className="space-y-4 border-t border-border pt-4"
+          >
             <p className="leading-7">{response.answer}</p>
             <ul className="space-y-1 text-sm text-muted-foreground">
               {response.citations.map((citation) => (
@@ -137,6 +140,7 @@ export function AskSheet({
                     target="_blank"
                   >
                     {citation.title}
+                    <span className="sr-only">(opens in a new tab)</span>
                   </a>
                 </li>
               ))}

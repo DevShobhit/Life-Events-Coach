@@ -9,6 +9,7 @@ export function LoadingState() {
       aria-busy="true"
       aria-label="Loading page"
       className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-6 py-10 sm:px-10"
+      id="main-content"
     >
       <Skeleton className="h-4 w-24" />
       <Skeleton className="h-10 w-72 max-w-full" />
@@ -19,7 +20,10 @@ export function LoadingState() {
 
 export function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 items-center px-6 py-10 sm:px-10">
+    <main
+      className="mx-auto flex w-full max-w-3xl flex-1 items-center px-6 py-10 sm:px-10"
+      id="main-content"
+    >
       <Alert className="gap-3" variant="destructive">
         <AlertCircle aria-hidden="true" />
         <AlertTitle>We could not load this page</AlertTitle>

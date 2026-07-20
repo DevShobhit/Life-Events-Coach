@@ -28,7 +28,10 @@ const steps = [
 
 export default function Home() {
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8 sm:py-12 lg:py-16">
+    <main
+      className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8 sm:py-12 lg:py-16"
+      id="main-content"
+    >
       <section className="grid items-center gap-12 lg:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)] lg:gap-20">
         <div className="max-w-xl">
           <div className="mb-8 flex items-center gap-3 text-primary">

@@ -4,6 +4,7 @@ import type {
   AskResponse,
   CardAction,
   Enrollment,
+  PublishedPhaseModule,
   RoadmapResponse,
 } from "./types";
 
@@ -24,6 +25,13 @@ export class LifeCurriculumClient {
   constructor(options: ClientOptions = {}) {
     this.baseUrl = options.baseUrl ?? appConfig.apiUrl;
     this.fetcher = options.fetcher ?? fetch;
+  }
+
+  phases(signal?: AbortSignal) {
+    return this.withRetry(
+      () => this.request<PublishedPhaseModule[]>("/phases", { signal }),
+      signal,
+    );
   }
 
   roadmap(

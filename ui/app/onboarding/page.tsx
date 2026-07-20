@@ -40,7 +40,10 @@ export default function OnboardingPage() {
   };
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center gap-8 px-6 py-12 sm:px-10">
+    <main
+      className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center gap-8 px-6 py-12 sm:px-10"
+      id="main-content"
+    >
       <div className="space-y-3">
         <p className="text-sm font-medium tracking-wide text-primary">
           YOUR CONTEXT

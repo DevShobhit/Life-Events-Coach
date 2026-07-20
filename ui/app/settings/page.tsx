@@ -8,7 +8,10 @@ export default function SettingsPage() {
   const setReducedMotion = useSessionStore((state) => state.setReducedMotion);
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-10 sm:px-10">
+    <main
+      className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-10 sm:px-10"
+      id="main-content"
+    >
       <div className="space-y-2">
         <p className="text-sm font-medium tracking-wide text-primary">
           SETTINGS

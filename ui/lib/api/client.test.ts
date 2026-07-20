@@ -4,6 +4,34 @@ import { LifeCurriculumClient } from "./client";
 import { ApiError } from "./errors";
 
 describe("LifeCurriculumClient", () => {
+  test("reads the published phase catalog with configured onboarding fields", async () => {
+    const client = new LifeCurriculumClient({
+      baseUrl: "https://api.example.test",
+      fetcher: async () =>
+        Response.json([
+          {
+            version: 1,
+            module: {
+              schema_version: "1.0",
+              phase_id: "relocation",
+              onboarding_fields: ["relocation_stage"],
+              thresholds: { skip_count_for_relevance_check: 2 },
+            },
+          },
+        ]),
+    });
+
+    await expect(client.phases()).resolves.toEqual([
+      expect.objectContaining({
+        version: 1,
+        module: expect.objectContaining({
+          phase_id: "relocation",
+          onboarding_fields: ["relocation_stage"],
+        }),
+      }),
+    ]);
+  });
+
   test("sends scoped roadmap requests with a request id", async () => {
     const requests: Request[] = [];
     const client = new LifeCurriculumClient({

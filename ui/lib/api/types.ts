@@ -5,6 +5,21 @@ export type CardAction =
   | "relevant"
   | "not_relevant";
 
+export type PhaseModule = {
+  schema_version: string;
+  phase_id: string;
+  onboarding_fields: string[];
+  thresholds?: {
+    skip_count_for_relevance_check?: number;
+    freshness_days?: number;
+  };
+};
+
+export type PublishedPhaseModule = {
+  version: number;
+  module: PhaseModule;
+};
+
 export type RoadmapCard = {
   concern_id: string;
   title: string;
