@@ -44,18 +44,24 @@ def migrate(database_url: str | None = None, directory: Path = MIGRATIONS_DIR) -
                 if path.name in applied:
                     continue
                 cursor.execute(path.read_text(encoding="utf-8"))
-                cursor.execute("INSERT INTO schema_migrations (version) VALUES (%s)", (path.name,))
+                cursor.execute(
+                    "INSERT INTO schema_migrations (version) VALUES (%s)", (path.name,)
+                )
                 count += 1
         connection.commit()
     return count
 
 
-def seed_launch_content(database_url: str | None = None, seed_file: Path | None = None) -> bool:
+def seed_launch_content(
+    database_url: str | None = None, seed_file: Path | None = None
+) -> bool:
     """Insert one unpublished launch module; never overwrite an existing version."""
     if os.getenv("APP_ENV", get_settings().app_env) == "production" and not os.getenv(
         "ALLOW_CONTENT_SEED"
     ):
-        raise RuntimeError("content seeding requires ALLOW_CONTENT_SEED outside development")
+        raise RuntimeError(
+            "content seeding requires ALLOW_CONTENT_SEED outside development"
+        )
     if seed_file is None:
         raise ValueError("--seed-file is required")
     payload: dict[str, Any] = json.loads(seed_file.read_text(encoding="utf-8"))
@@ -95,7 +101,11 @@ def main() -> None:
     if args.command == "migrate":
         print(f"applied {migrate()} migration(s)")
     else:
-        print("seeded" if seed_launch_content(seed_file=args.seed_file) else "already present")
+        print(
+            "seeded"
+            if seed_launch_content(seed_file=args.seed_file)
+            else "already present"
+        )
 
 
 if __name__ == "__main__":

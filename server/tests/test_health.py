@@ -1,3 +1,6 @@
+from collections.abc import AsyncIterator
+from typing import Any
+
 from app.core.database import get_session
 from app.main import app, settings
 from fastapi.testclient import TestClient
@@ -15,10 +18,10 @@ def test_live_health_returns_service_status_and_request_id() -> None:
 
 def test_ready_health_requires_database_probe() -> None:
     class HealthySession:
-        async def execute(self, query):
+        async def execute(self, query: Any) -> None:
             return None
 
-    async def override_session():
+    async def override_session() -> AsyncIterator[HealthySession]:
         yield HealthySession()
 
     app.dependency_overrides[get_session] = override_session
@@ -33,10 +36,10 @@ def test_ready_health_requires_database_probe() -> None:
 
 def test_ready_health_returns_503_when_database_probe_fails() -> None:
     class BrokenSession:
-        async def execute(self, query):
+        async def execute(self, query: Any) -> None:
             raise RuntimeError("database unavailable")
 
-    async def override_session():
+    async def override_session() -> AsyncIterator[BrokenSession]:
         yield BrokenSession()
 
     app.dependency_overrides[get_session] = override_session
@@ -123,7 +126,12 @@ def test_metrics_endpoint_requires_configured_token() -> None:
     try:
         client = TestClient(app)
         assert client.get("/metrics").status_code == 403
-        assert client.get("/metrics", headers={"X-Metrics-Token": "test-secret"}).status_code == 200
+        assert (
+            client.get(
+                "/metrics", headers={"X-Metrics-Token": "test-secret"}
+            ).status_code
+            == 200
+        )
     finally:
         settings.app_env = original_env
         settings.metrics_access_token = original_token

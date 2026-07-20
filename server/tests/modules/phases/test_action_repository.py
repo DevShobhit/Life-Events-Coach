@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator
+from typing import Any
 
 import pytest
 from app.modules.phases.action_repository import CardActionRepository
@@ -101,7 +102,7 @@ async def test_progress_row_is_selected_for_update_before_transition(
     calls: list[bool] = []
     original = session.get
 
-    async def get(model: object, ident: object, **kwargs: object) -> object:
+    async def get(model: Any, ident: Any, **kwargs: Any) -> Any:
         calls.append(bool(kwargs.get("with_for_update")))
         return await original(model, ident, **kwargs)
 

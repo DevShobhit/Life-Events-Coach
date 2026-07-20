@@ -33,7 +33,9 @@ class CardActionRepository:
             prior = await self._session.get(CardActionRecord, action_key)
             if prior is not None:
                 if prior.action != action.value:
-                    raise ValueError("idempotency key already used with different payload")
+                    raise ValueError(
+                        "idempotency key already used with different payload"
+                    )
                 return ActionResult(prior.resulting_status, prior.skip_count, True)
 
             progress_key = (user_id, phase_id, concern_id)

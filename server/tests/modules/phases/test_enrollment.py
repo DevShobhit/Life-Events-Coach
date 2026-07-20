@@ -1,7 +1,6 @@
 from datetime import date
 
 import pytest
-
 from app.modules.phases.enrollment import validate_enrollment
 from app.modules.phases.fixtures import LAUNCH_RELOCATION
 

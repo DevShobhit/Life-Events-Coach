@@ -31,16 +31,14 @@ def validate_enrollment(
             raise ValueError(f"invalid value for enrollment field: {key}")
     stage_keys = [key for key in allowed if "stage" in key]
     known_stages = {
-        stage
-        for concern in module.concerns
-        for stage in concern.available_stages
+        stage for concern in module.concerns for stage in concern.available_stages
     }
     if stage_keys and not known_stages:
         known_stages = {"pre_departure", "preparing", "arrived", "settling"}
     for key in stage_keys:
-        value = context.get(key)
-        if value is not None and known_stages and value not in known_stages:
-            raise ValueError(f"invalid stage value: {value}")
+        stage_value = context.get(key)
+        if stage_value is not None and known_stages and stage_value not in known_stages:
+            raise ValueError(f"invalid stage value: {stage_value}")
     return Enrollment(
         user_id=user_id,
         phase_id=phase_id,

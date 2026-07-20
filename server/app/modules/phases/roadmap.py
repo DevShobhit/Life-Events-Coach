@@ -6,9 +6,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.phases.action_repository import CardActionRepository
+from app.modules.phases.enrollment_repository import EnrollmentRepository
 from app.modules.phases.lifecycle import CardAction, CardState, apply_action
 from app.modules.phases.orm_models import CardProgressRecord
-from app.modules.phases.enrollment_repository import EnrollmentRepository
 from app.modules.phases.priority import RankedConcern, RankRequest, rank_concerns
 from app.modules.phases.schemas import PhaseModule
 
