@@ -13,11 +13,31 @@ LAUNCH_RELOCATION = PhaseModule.model_validate(
     {
         "schema_version": "1.0",
         "phase_id": "relocation",
+        "display_name": "Relocation",
+        "description": "A practical path for moving and settling into a new place.",
         "source_policy": ["government_portal"],
         "onboarding_fields": [
             "origin_country",
             "destination_country",
             "relocation_stage",
+        ],
+        "onboarding_field_metadata": [
+            {
+                "key": "origin_country",
+                "label": "Origin country",
+                "description": "Where you are moving from.",
+            },
+            {
+                "key": "destination_country",
+                "label": "Destination country",
+                "description": "Where you are moving to.",
+            },
+            {
+                "key": "relocation_stage",
+                "label": "Current stage",
+                "description": "Where you are in the move.",
+                "required": True,
+            },
         ],
         "concerns": [
             {

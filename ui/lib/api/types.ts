@@ -8,7 +8,15 @@ export type CardAction =
 export type PhaseModule = {
   schema_version: string;
   phase_id: string;
+  display_name?: string | null;
+  description?: string | null;
   onboarding_fields: string[];
+  onboarding_field_metadata?: {
+    key: string;
+    label: string;
+    description?: string;
+    required?: boolean;
+  }[];
   thresholds?: {
     skip_count_for_relevance_check?: number;
     freshness_days?: number;

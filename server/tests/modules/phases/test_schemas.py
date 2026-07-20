@@ -41,6 +41,46 @@ def test_phase_module_accepts_a_valid_versioned_configuration() -> None:
     assert module.concerns[0].citation.source_type == "government_portal"
 
 
+def test_phase_module_accepts_onboarding_field_metadata() -> None:
+    module = PhaseModule.model_validate(
+        {
+            "schema_version": "1.0",
+            "phase_id": "relocation",
+            "source_policy": ["government_portal"],
+            "onboarding_fields": ["origin_country"],
+            "onboarding_field_metadata": [
+                {
+                    "key": "origin_country",
+                    "label": "Where are you moving from?",
+                    "description": "Your starting country.",
+                    "required": False,
+                }
+            ],
+            "concerns": [valid_concern()],
+        }
+    )
+
+    assert module.onboarding_field_metadata[0].key == "origin_country"
+
+
+def test_phase_module_rejects_metadata_for_unknown_onboarding_fields() -> None:
+    with pytest.raises(
+        ValidationError, match="metadata must reference configured fields"
+    ):
+        PhaseModule.model_validate(
+            {
+                "schema_version": "1.0",
+                "phase_id": "relocation",
+                "source_policy": ["government_portal"],
+                "onboarding_fields": [],
+                "onboarding_field_metadata": [
+                    {"key": "origin_country", "label": "Origin"}
+                ],
+                "concerns": [valid_concern()],
+            }
+        )
+
+
 def test_phase_module_rejects_unsupported_schema_versions() -> None:
     with pytest.raises(ValidationError, match="schema_version"):
         PhaseModule.model_validate(

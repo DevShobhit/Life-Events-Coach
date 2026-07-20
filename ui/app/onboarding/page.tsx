@@ -32,6 +32,13 @@ function fieldLabel(field: string) {
     .join(" ");
 }
 
+function fieldMetadata(
+  phase: { module: { onboarding_field_metadata?: { key: string; label: string; description?: string }[] } } | undefined,
+  field: string,
+) {
+  return phase?.module.onboarding_field_metadata?.find((item) => item.key === field);
+}
+
 export default function OnboardingPage() {
   const userId = useSessionStore((state) => state.developmentUserId);
   const activePhase = useSessionStore((state) => state.activePhase);
@@ -128,20 +135,27 @@ export default function OnboardingPage() {
               </FieldDescription>
               <FieldError errors={[form.formState.errors.stage]} />
             </Field>
-            {optionalFields.map((field) => (
-              <Field key={field}>
-                <FieldLabel htmlFor={`context-${field}`}>
-                  {fieldLabel(field)}{" "}
-                  <span className="font-normal">(optional)</span>
-                </FieldLabel>
-                <Input
-                  autoComplete="off"
-                  id={`context-${field}`}
-                  placeholder={`Add your ${fieldLabel(field).toLowerCase()}…`}
-                  {...form.register(`context.${field}`)}
-                />
-              </Field>
-            ))}
+            {optionalFields.map((field) => {
+              const metadata = fieldMetadata(selectedPhase, field);
+              const label = metadata?.label ?? fieldLabel(field);
+
+              return (
+                <Field key={field}>
+                  <FieldLabel htmlFor={`context-${field}`}>
+                    {label} <span className="font-normal">(optional)</span>
+                  </FieldLabel>
+                  <Input
+                    autoComplete="off"
+                    id={`context-${field}`}
+                    placeholder={`Add your ${label.toLowerCase()}…`}
+                    {...form.register(`context.${field}`)}
+                  />
+                  {metadata?.description ? (
+                    <FieldDescription>{metadata.description}</FieldDescription>
+                  ) : null}
+                </Field>
+              );
+            })}
           </FieldGroup>
           <div className="flex flex-wrap gap-3">
             <Button

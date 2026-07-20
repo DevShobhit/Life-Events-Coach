@@ -64,11 +64,21 @@ class CardProgress(BaseModel):
     skip_count: int = Field(default=0, ge=0)
 
 
+class OnboardingField(BaseModel):
+    key: str = Field(min_length=1, max_length=100)
+    label: str = Field(min_length=1, max_length=200)
+    description: str = Field(default="", max_length=500)
+    required: bool = False
+
+
 class PhaseModule(BaseModel):
     schema_version: str
     phase_id: str = Field(min_length=1, max_length=100)
+    display_name: str | None = Field(default=None, max_length=200)
+    description: str | None = Field(default=None, max_length=500)
     source_policy: list[SourceType] = Field(min_length=1)
     onboarding_fields: list[str] = Field(default_factory=list)
+    onboarding_field_metadata: list[OnboardingField] = Field(default_factory=list)
     thresholds: AdaptiveThresholds = Field(default_factory=AdaptiveThresholds)
     concerns: list[Concern] = Field(min_length=1)
     qa_bank: list[CuratedAnswer] = Field(default_factory=list)
@@ -90,4 +100,11 @@ class PhaseModule(BaseModel):
                 raise ValueError(
                     f"citation source_type is not in source_policy: {concern.id}"
                 )
+        metadata_keys = [field.key for field in self.onboarding_field_metadata]
+        if len(metadata_keys) != len(set(metadata_keys)):
+            raise ValueError("onboarding field metadata keys must be unique")
+        if set(metadata_keys) - set(self.onboarding_fields):
+            raise ValueError(
+                "onboarding field metadata must reference configured fields"
+            )
         return self

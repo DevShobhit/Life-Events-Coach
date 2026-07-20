@@ -24,6 +24,10 @@ export function PhaseSelector({
     <div className="grid gap-3">
       {phases.map(({ module }) => {
         const selected = selectedPhaseId === module.phase_id;
+        const name = module.display_name || phaseName(module.phase_id);
+        const description =
+          module.description ||
+          `A guided path for your ${phaseName(module.phase_id).toLowerCase()} transition.`;
         return (
           <Button
             aria-pressed={selected}
@@ -35,9 +39,9 @@ export function PhaseSelector({
           >
             <Compass aria-hidden="true" className="size-5 shrink-0" />
             <span className="min-w-0 flex-1">
-              <span className="block font-medium">{phaseName(module.phase_id)}</span>
+              <span className="block font-medium">{name}</span>
               <span className="mt-1 block text-sm font-normal text-muted-foreground">
-                A guided path for your {phaseName(module.phase_id).toLowerCase()} transition.
+                {description}
               </span>
             </span>
             {selected ? <Check aria-hidden="true" className="size-4" /> : null}
