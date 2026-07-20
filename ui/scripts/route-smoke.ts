@@ -10,6 +10,7 @@ const apiUrl = (process.env.SMOKE_API_URL ?? "http://localhost:8000").replace(
 );
 const smokeUserId = process.env.SMOKE_USER_ID?.trim();
 const smokePhaseId = process.env.SMOKE_PHASE_ID?.trim() ?? "relocation";
+const timeoutMs = Number(process.env.SMOKE_TIMEOUT_MS ?? "30000");
 
 type Check = { name: string; url: string; expected: RegExp };
 
@@ -22,7 +23,7 @@ async function checkRoute(check: Check) {
   try {
     const response = await fetch(check.url, {
       redirect: "manual",
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     const body = await response.text();
     const ok = response.status >= 200 && response.status < 400 && check.expected.test(body);
@@ -60,7 +61,7 @@ async function checkApiEndpoint(
   try {
     const response = await fetch(`${apiUrl}${path}`, {
       ...options,
-      signal: options.signal ?? AbortSignal.timeout(10_000),
+      signal: options.signal ?? AbortSignal.timeout(timeoutMs),
     });
     console.log(
       JSON.stringify({
