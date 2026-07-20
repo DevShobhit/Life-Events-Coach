@@ -18,6 +18,31 @@ type RoadmapOfflineWriter = {
   ) => void;
 };
 
+type RoadmapOfflineReader = {
+  read: (
+    userId: string,
+    phaseId: string,
+    stage: string,
+  ) => RoadmapResponse | null;
+};
+
+export function loadRoadmapOffline(
+  store: RoadmapOfflineReader | null | undefined,
+  userId: string,
+  phaseId: string,
+  stage: string,
+) {
+  if (!store) return undefined;
+  try {
+    return store.read(userId, phaseId, stage) ?? undefined;
+  } catch (error) {
+    logDevelopment("roadmap.cache.read.failed", {
+      errorType: error instanceof Error ? error.name : "unknown",
+    });
+    return undefined;
+  }
+}
+
 export function persistRoadmapOffline(
   store: RoadmapOfflineWriter | null | undefined,
   userId: string,
@@ -47,7 +72,7 @@ export function roadmapQueryOptions(
       try {
         const roadmap = await getRoadmap(userId, phaseId, stage, signal);
         persistRoadmapOffline(
-          browserRoadmapOfflineStore(),
+          safeBrowserRoadmapOfflineStore(),
           userId,
           phaseId,
           stage,
@@ -74,9 +99,25 @@ export function roadmapQueryOptions(
     staleTime: ROADMAP_QUERY_STALE_TIME_MS,
     refetchOnReconnect: false,
     placeholderData: () =>
-      browserRoadmapOfflineStore()?.read(userId, phaseId, stage) ?? undefined,
+      loadRoadmapOffline(
+        safeBrowserRoadmapOfflineStore(),
+        userId,
+        phaseId,
+        stage,
+      ),
     meta: { getUserFacingError },
   };
+}
+
+function safeBrowserRoadmapOfflineStore() {
+  try {
+    return browserRoadmapOfflineStore();
+  } catch (error) {
+    logDevelopment("roadmap.cache.open.failed", {
+      errorType: error instanceof Error ? error.name : "unknown",
+    });
+    return null;
+  }
 }
 
 export function useRoadmapQuery(

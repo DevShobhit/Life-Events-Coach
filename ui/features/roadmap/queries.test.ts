@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { RoadmapResponse } from "./types";
-import { persistRoadmapOffline } from "./queries";
+import { loadRoadmapOffline, persistRoadmapOffline } from "./queries";
 
 const roadmap = {} as RoadmapResponse;
 
@@ -19,5 +19,20 @@ describe("roadmap offline persistence", () => {
         roadmap,
       ),
     ).not.toThrow();
+  });
+
+  test("does not fail route initialization when offline reads fail", () => {
+    expect(
+      loadRoadmapOffline(
+        {
+          read: () => {
+            throw new Error("storage unavailable");
+          },
+        },
+        "user",
+        "phase",
+        "arrived",
+      ),
+    ).toBeUndefined();
   });
 });
