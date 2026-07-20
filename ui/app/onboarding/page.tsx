@@ -16,16 +16,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { useEnrollmentSaveMutation } from "@/features/enrollment/mutations";
 import {
-  type EnrollmentFormInput,
-  type EnrollmentFormValues,
-  createEnrollmentSchema,
-} from "@/features/enrollment/schema";
-import {
   fieldIsRequired,
   fieldLabel,
   fieldMetadata,
   stageMetadata,
 } from "@/features/enrollment/phase-metadata";
+import {
+  createEnrollmentSchema,
+  type EnrollmentFormInput,
+  type EnrollmentFormValues,
+} from "@/features/enrollment/schema";
 import { PhaseSelector } from "@/features/phases/components/phase-selector";
 import { usePublishedPhasesQuery } from "@/features/phases/queries";
 import { useSessionStore } from "@/lib/state/session";
@@ -65,11 +65,9 @@ export default function OnboardingPage() {
     ? stageMetadata(selectedPhase.module)
     : undefined;
   const stageRequired = selectedPhase
-    ? fieldIsRequired(
-        selectedPhase.module,
-        configuredStage?.key ?? "stage",
-        { stage: true },
-      )
+    ? fieldIsRequired(selectedPhase.module, configuredStage?.key ?? "stage", {
+        stage: true,
+      })
     : true;
 
   const continueToNow = async (values: EnrollmentFormValues) => {
@@ -124,7 +122,8 @@ export default function OnboardingPage() {
           <FieldGroup>
             <Field data-invalid={Boolean(form.formState.errors.stage)}>
               <FieldLabel htmlFor="stage">
-                {configuredStage?.label ?? "What best describes your current stage?"}{" "}
+                {configuredStage?.label ??
+                  "What best describes your current stage?"}{" "}
                 <span className="font-normal">
                   ({stageRequired ? "required" : "optional"})
                 </span>
