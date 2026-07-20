@@ -26,7 +26,10 @@ export class LifeCurriculumClient {
 
   constructor(options: ClientOptions = {}) {
     this.baseUrl = options.baseUrl ?? appConfig.apiUrl;
-    this.fetcher = (options.fetcher ?? globalThis.fetch).bind(globalThis);
+    const fetchImplementation = options.fetcher ?? globalThis.fetch;
+    const fetchReceiver = typeof window === "undefined" ? globalThis : window;
+    this.fetcher = (input, init) =>
+      Reflect.apply(fetchImplementation, fetchReceiver, [input, init]);
   }
 
   phases(signal?: AbortSignal) {

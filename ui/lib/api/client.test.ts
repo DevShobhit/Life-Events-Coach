@@ -185,4 +185,28 @@ describe("LifeCurriculumClient", () => {
 
     await expect(client.phases()).resolves.toEqual([]);
   });
+
+  test("invokes the default fetch implementation with its global receiver", async () => {
+    const originalFetch = globalThis.fetch;
+    let receiver: typeof globalThis | undefined;
+    globalThis.fetch = function (
+      this: typeof globalThis,
+      input: RequestInfo | URL,
+    ) {
+      receiver = this;
+      expect(String(input)).toContain("/phases");
+      return Promise.resolve(Response.json([]));
+    };
+
+    try {
+      const client = new LifeCurriculumClient({
+        baseUrl: "https://api.example.test",
+      });
+
+      await expect(client.phases()).resolves.toEqual([]);
+      expect(receiver).toBe(globalThis);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });
