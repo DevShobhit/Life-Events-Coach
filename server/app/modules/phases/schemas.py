@@ -28,6 +28,7 @@ class CardContent(BaseModel):
 class Concern(BaseModel):
     id: str = Field(min_length=1, max_length=100)
     title: str = Field(min_length=1, max_length=200)
+    content_category: str | None = Field(default=None, max_length=100)
     urgency: int = Field(ge=0, le=100)
     horizon_days: int = Field(ge=0)
     hidden_factor: bool = False

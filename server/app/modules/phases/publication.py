@@ -22,6 +22,23 @@ class PublicationError(ValueError):
         )
 
 
+PRODUCTION_CONTENT_CATEGORIES = frozenset(
+    {
+        "preparation",
+        "documents",
+        "housing",
+        "transport",
+        "finance",
+        "health",
+        "work_or_study",
+        "arrival",
+        "registration",
+        "utilities",
+        "community",
+    }
+)
+
+
 class PhaseModuleCache:
     def __init__(self) -> None:
         self._modules: dict[str, PhaseModule] = {}
@@ -56,6 +73,11 @@ def validate_launch_content(
         errors.setdefault("concerns", []).append(
             "production modules require at most 60 reviewed concerns"
         )
+    for concern in module.concerns:
+        if concern.content_category not in PRODUCTION_CONTENT_CATEGORIES:
+            errors.setdefault("content_category", []).append(
+                f"concern {concern.id} requires a recognized production category"
+            )
     blocked_hosts = {
         "localhost",
         "test",

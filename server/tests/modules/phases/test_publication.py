@@ -122,3 +122,11 @@ def test_non_production_fixture_is_allowed_by_content_gate() -> None:
     module = PhaseModule.model_validate(module_payload())
 
     assert validate_launch_content(module, production=False) == {}
+
+
+def test_production_content_gate_requires_recognized_categories() -> None:
+    module = PhaseModule.model_validate(module_payload())
+
+    errors = validate_launch_content(module, production=True)
+
+    assert "content_category" in errors
