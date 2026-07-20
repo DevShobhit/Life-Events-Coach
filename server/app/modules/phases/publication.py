@@ -52,6 +52,10 @@ def validate_launch_content(
         errors.setdefault("concerns", []).append(
             "production modules require at least 40 reviewed concerns"
         )
+    if len(module.concerns) > 60:
+        errors.setdefault("concerns", []).append(
+            "production modules require at most 60 reviewed concerns"
+        )
     blocked_hosts = {
         "localhost",
         "test",

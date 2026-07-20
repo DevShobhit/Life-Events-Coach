@@ -104,6 +104,20 @@ def test_production_content_gate_rejects_fixture_domains_small_banks_and_missing
     assert "card.visual_url" in errors
 
 
+def test_production_content_gate_rejects_more_than_sixty_concerns() -> None:
+    payload = module_payload()
+    payload["concerns"] = [
+        {**payload["concerns"][0], "id": f"concern-{index}"}
+        for index in range(61)
+    ]
+    module = PhaseModule.model_validate(payload)
+
+    errors = validate_launch_content(module, production=True)
+
+    assert "concerns" in errors
+    assert any("at most 60" in message for message in errors["concerns"])
+
+
 def test_non_production_fixture_is_allowed_by_content_gate() -> None:
     module = PhaseModule.model_validate(module_payload())
 
