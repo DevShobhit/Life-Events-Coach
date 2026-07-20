@@ -14,6 +14,13 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useEnrollmentSaveMutation } from "@/features/enrollment/mutations";
+import {
+  fieldLabel,
+  fieldMetadata,
+  phaseDescription,
+  phaseDisplayName,
+  stageMetadata,
+} from "@/features/enrollment/phase-metadata";
 import { useEnrollmentQuery } from "@/features/enrollment/queries";
 import {
   type EnrollmentFormValues,
@@ -23,13 +30,6 @@ import { usePublishedPhasesQuery } from "@/features/phases/queries";
 import { roadmapQueryKeys } from "@/features/roadmap/query-keys";
 import { useSessionStore } from "@/lib/state/session";
 import { getUserFacingError } from "@/lib/ux/feedback";
-
-function labelFor(field: string) {
-  return field
-    .split(/[-_]/u)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
 
 export function ContextSettings({
   phaseId,
@@ -47,12 +47,15 @@ export function ContextSettings({
     resolver: zodResolver(enrollmentSchema),
     defaultValues: { context: {}, stage: "" },
   });
+  const phase = phases.data?.find(
+    (publishedPhase) => publishedPhase.module.phase_id === phaseId,
+  );
+  const phaseModule = phase?.module;
   const fields =
-    phases.data
-      ?.find((phase) => phase.module.phase_id === phaseId)
-      ?.module.onboarding_fields.filter(
-        (field) => !["stage", "relocation_stage"].includes(field),
-      ) ?? [];
+    phaseModule?.onboarding_fields.filter(
+      (field) => !["stage", "relocation_stage"].includes(field),
+    ) ?? [];
+  const configuredStage = phaseModule ? stageMetadata(phaseModule) : undefined;
 
   useEffect(() => {
     if (enrollment.data) {
@@ -84,32 +87,65 @@ export function ContextSettings({
 
   return (
     <form className="space-y-5" onSubmit={form.handleSubmit(save)} noValidate>
+      {phaseModule ? (
+        <div className="space-y-1">
+          <h2 className="text-xl font-medium tracking-tight">
+            {phaseDisplayName(phaseModule)}
+          </h2>
+          {phaseDescription(phaseModule) ? (
+            <p className="text-sm text-muted-foreground">
+              {phaseDescription(phaseModule)}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       <FieldGroup>
         <Field data-invalid={Boolean(form.formState.errors.stage)}>
-          <FieldLabel htmlFor="settings-stage">Current stage</FieldLabel>
+          <FieldLabel htmlFor="settings-stage">
+            {configuredStage?.label ?? "Current stage"}{" "}
+            <span className="font-normal">
+              ({configuredStage?.required === false ? "optional" : "required"})
+            </span>
+          </FieldLabel>
           <Input
             aria-invalid={Boolean(form.formState.errors.stage)}
             autoComplete="off"
             id="settings-stage"
+            required={configuredStage?.required !== false}
             {...form.register("stage")}
           />
           <FieldDescription>
-            This changes which roadmap steps appear first.
+            {configuredStage?.description ??
+              "This changes which roadmap steps appear first."}
           </FieldDescription>
           <FieldError errors={[form.formState.errors.stage]} />
         </Field>
-        {fields.map((field) => (
-          <Field key={field}>
-            <FieldLabel htmlFor={`settings-${field}`}>
-              {labelFor(field)} <span className="font-normal">(optional)</span>
-            </FieldLabel>
-            <Input
-              autoComplete="off"
-              id={`settings-${field}`}
-              {...form.register(`context.${field}`)}
-            />
-          </Field>
-        ))}
+        {fields.map((field) => {
+          const metadata = phaseModule
+            ? fieldMetadata(phaseModule, field)
+            : undefined;
+          const required = metadata?.required === true;
+
+          return (
+            <Field key={field}>
+              <FieldLabel htmlFor={`settings-${field}`}>
+                {metadata?.label ?? fieldLabel(field)}{" "}
+                <span className="font-normal">
+                  ({required ? "required" : "optional"})
+                </span>
+              </FieldLabel>
+              <Input
+                autoComplete="off"
+                id={`settings-${field}`}
+                required={required}
+                {...form.register(`context.${field}`)}
+              />
+              {metadata?.description ? (
+                <FieldDescription>{metadata.description}</FieldDescription>
+              ) : null}
+            </Field>
+          );
+        })}
       </FieldGroup>
       {mutation.error ? (
         <p className="text-sm text-destructive" role="alert">
