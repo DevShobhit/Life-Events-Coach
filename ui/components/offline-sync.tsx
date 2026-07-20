@@ -9,11 +9,36 @@ import {
 } from "@/lib/offline/replay-roadmap-actions";
 import { browserRoadmapOfflineStore } from "@/lib/offline/roadmap-cache";
 import { queryClient } from "@/lib/query/query-client";
+import { logDevelopment } from "@/lib/logging/logger";
 
 export function OfflineSync() {
   useEffect(() => {
-    if ("serviceWorker" in navigator)
-      void navigator.serviceWorker.register("/sw.js");
+    let disposed = false;
+    if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
+      logDevelopment("service_worker.registration_started");
+      void navigator.serviceWorker
+        .register("/sw.js", { updateViaCache: "none" })
+        .then((registration) => {
+          if (disposed) return;
+          logDevelopment("service_worker.registration_completed", {
+            scope: registration.scope,
+            state: registration.active?.state ?? registration.installing?.state,
+          });
+          registration.addEventListener("updatefound", () => {
+            logDevelopment("service_worker.update_available");
+          });
+        })
+        .catch((error: unknown) => {
+          logDevelopment("service_worker.registration_failed", {
+            errorType: error instanceof Error ? error.name : "unknown",
+          });
+        });
+    } else {
+      logDevelopment("service_worker.registration_skipped", {
+        enabled: "serviceWorker" in navigator,
+        environment: process.env.NODE_ENV,
+      });
+    }
 
     const replay = async () => {
       const store = browserRoadmapOfflineStore();
@@ -36,7 +61,10 @@ export function OfflineSync() {
 
     void replay();
     window.addEventListener("online", replay);
-    return () => window.removeEventListener("online", replay);
+    return () => {
+      disposed = true;
+      window.removeEventListener("online", replay);
+    };
   }, []);
 
   return null;
