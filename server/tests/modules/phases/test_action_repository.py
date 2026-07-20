@@ -65,3 +65,53 @@ async def test_duplicate_action_key_is_idempotent(session: AsyncSession) -> None
 
     assert first.idempotent is False
     assert second == type(first)(status="done", skip_count=0, idempotent=True)
+
+
+@pytest.mark.anyio
+async def test_idempotency_key_reuse_with_different_action_is_rejected(
+    session: AsyncSession,
+) -> None:
+    repository = CardActionRepository(session)
+    await repository.apply(
+        user_id="u",
+        phase_id="relocation",
+        concern_id="c",
+        action=CardAction.DONE,
+        skip_threshold=2,
+        idempotency_key="same",
+    )
+
+    with pytest.raises(ValueError, match="idempotency key already used"):
+        await repository.apply(
+            user_id="u",
+            phase_id="relocation",
+            concern_id="c",
+            action=CardAction.SKIP,
+            skip_threshold=2,
+            idempotency_key="same",
+        )
+
+
+@pytest.mark.anyio
+async def test_progress_row_is_selected_for_update_before_transition(
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = CardActionRepository(session)
+    calls: list[bool] = []
+    original = session.get
+
+    async def get(model: object, ident: object, **kwargs: object) -> object:
+        calls.append(bool(kwargs.get("with_for_update")))
+        return await original(model, ident, **kwargs)
+
+    monkeypatch.setattr(session, "get", get)
+    await repository.apply(
+        user_id="u",
+        phase_id="relocation",
+        concern_id="c",
+        action=CardAction.DONE,
+        skip_threshold=2,
+        idempotency_key="one",
+    )
+    assert True in calls

@@ -32,10 +32,16 @@ class CardActionRepository:
             action_key = (user_id, phase_id, concern_id, idempotency_key)
             prior = await self._session.get(CardActionRecord, action_key)
             if prior is not None:
+                if prior.action != action.value:
+                    raise ValueError("idempotency key already used with different payload")
                 return ActionResult(prior.resulting_status, prior.skip_count, True)
 
             progress_key = (user_id, phase_id, concern_id)
-            progress = await self._session.get(CardProgressRecord, progress_key)
+            # Serialize transitions for a card. PostgreSQL row locks ensure two
+            # devices cannot both read the same skip_count and overwrite it.
+            progress = await self._session.get(
+                CardProgressRecord, progress_key, with_for_update=True
+            )
             state = CardState(
                 status=progress.status if progress else "pending",
                 skip_count=progress.skip_count if progress else 0,
