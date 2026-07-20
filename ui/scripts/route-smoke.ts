@@ -20,7 +20,10 @@ const checks: Check[] = [
 
 async function checkRoute(check: Check) {
   try {
-    const response = await fetch(check.url, { redirect: "manual" });
+    const response = await fetch(check.url, {
+      redirect: "manual",
+      signal: AbortSignal.timeout(10_000),
+    });
     const body = await response.text();
     const ok = response.status >= 200 && response.status < 400 && check.expected.test(body);
     console.log(
@@ -55,7 +58,10 @@ async function checkApiEndpoint(
   displayPath = path,
 ) {
   try {
-    const response = await fetch(`${apiUrl}${path}`, options);
+    const response = await fetch(`${apiUrl}${path}`, {
+      ...options,
+      signal: options.signal ?? AbortSignal.timeout(10_000),
+    });
     console.log(
       JSON.stringify({
         kind: "api_smoke",
