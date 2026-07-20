@@ -9,13 +9,19 @@ function isCacheableAsset(request) {
   return ["script", "style", "image", "font"].includes(request.destination);
 }
 
-async function cacheAsset(request) {
-  const response = await fetch(request);
-  if (response.ok && response.type === "basic") {
-    const cache = await caches.open(CACHE_NAME);
-    await cache.put(request, response.clone());
+async function networkFirstAsset(request) {
+  try {
+    const response = await fetch(request);
+    if (response.ok && response.type === "basic") {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    throw error;
   }
-  return response;
 }
 
 async function networkFirstNavigation(request) {
@@ -60,5 +66,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(networkFirstNavigation(request));
     return;
   }
-  if (isCacheableAsset(request)) event.respondWith(cacheAsset(request));
+  if (isCacheableAsset(request)) {
+    event.respondWith(networkFirstAsset(request));
+  }
 });

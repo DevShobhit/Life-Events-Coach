@@ -14,6 +14,7 @@ import { logDevelopment } from "@/lib/logging/logger";
 export function OfflineSync() {
   useEffect(() => {
     let disposed = false;
+    let cleanupRegistration = () => {};
     if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
       logDevelopment("service_worker.registration_started");
       void navigator.serviceWorker
@@ -24,9 +25,26 @@ export function OfflineSync() {
             scope: registration.scope,
             state: registration.active?.state ?? registration.installing?.state,
           });
-          registration.addEventListener("updatefound", () => {
+          const handleUpdateFound = () => {
             logDevelopment("service_worker.update_available");
-          });
+          };
+          const handleControllerChange = () => {
+            logDevelopment("service_worker.controller_changed", {
+              controlled: Boolean(navigator.serviceWorker.controller),
+            });
+          };
+          registration.addEventListener("updatefound", handleUpdateFound);
+          navigator.serviceWorker.addEventListener(
+            "controllerchange",
+            handleControllerChange,
+          );
+          cleanupRegistration = () => {
+            registration.removeEventListener("updatefound", handleUpdateFound);
+            navigator.serviceWorker.removeEventListener(
+              "controllerchange",
+              handleControllerChange,
+            );
+          };
         })
         .catch((error: unknown) => {
           logDevelopment("service_worker.registration_failed", {
@@ -63,6 +81,7 @@ export function OfflineSync() {
     window.addEventListener("online", replay);
     return () => {
       disposed = true;
+      cleanupRegistration();
       window.removeEventListener("online", replay);
     };
   }, []);
