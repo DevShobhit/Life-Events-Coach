@@ -10,12 +10,11 @@ import os
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
 from app.modules.phases.action_repository import CardActionRepository
 from app.modules.phases.lifecycle import CardAction
 from app.modules.phases.orm_models import Base, CardProgressRecord
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 
 def _database_url() -> str | None:
