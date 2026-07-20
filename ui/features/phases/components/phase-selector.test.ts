@@ -13,4 +13,10 @@ describe("phase selector contract", () => {
     expect(phase.module.phase_id).toBe("relocation");
     expect(phase.module.onboarding_fields).toContain("relocation_stage");
   });
+
+  test("provides an accessible empty catalog state", async () => {
+    const source = await Bun.file("features/phases/components/phase-selector.tsx").text();
+    expect(source).toContain("No paths are available right now.");
+    expect(source).toContain('role="status"');
+  });
 });

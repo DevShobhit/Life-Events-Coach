@@ -20,6 +20,14 @@ export function PhaseSelector({
   selectedPhaseId: string | null;
   onSelect: (phaseId: string) => void;
 }) {
+  if (phases.length === 0) {
+    return (
+      <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground" role="status">
+        No paths are available right now. Please try again later.
+      </p>
+    );
+  }
+
   return (
     <div className="grid gap-3">
       {phases.map(({ module }) => {
