@@ -23,7 +23,12 @@ def validate_enrollment(
     required = {
         field.key for field in module.onboarding_field_metadata if field.required
     }
-    missing = required - set(context)
+    missing = {
+        field
+        for field in required
+        if field not in context
+        and not (field == "relocation_stage" and "stage" in context)
+    }
     if missing:
         raise ValueError(f"missing required enrollment field: {sorted(missing)[0]}")
     for key, value in context.items():
