@@ -16,6 +16,8 @@ from typing import Any
 import psycopg
 
 from app.core.settings import get_settings
+from app.modules.phases.publication import validate_launch_content
+from app.modules.phases.schemas import PhaseModule
 
 MIGRATIONS_DIR = Path(__file__).parents[2] / "migrations"
 
@@ -26,6 +28,26 @@ def migration_files(directory: Path = MIGRATIONS_DIR) -> list[Path]:
 
 def normalize_database_url(url: str) -> str:
     return url.replace("postgresql+asyncpg://", "postgresql://", 1)
+
+
+def validate_seed_payload(
+    seed_file: Path, *, production: bool = False
+) -> tuple[str, int, PhaseModule, str]:
+    """Validate a seed file before it can be written to the published catalog."""
+    payload: dict[str, Any] = json.loads(seed_file.read_text(encoding="utf-8"))
+    module = PhaseModule.model_validate(payload["content"])
+    phase_id = str(payload["phase_id"])
+    if module.phase_id != phase_id:
+        raise ValueError("seed phase_id must match content.phase_id")
+    errors = validate_launch_content(module, production=production)
+    if errors:
+        details = "; ".join(
+            f"{field}: {message}" for field, message in errors.items()
+        )
+        raise ValueError(f"seed content rejected: {details}")
+    return phase_id, int(payload["version"]), module, str(
+        payload.get("status", "published")
+    )
 
 
 def migrate(database_url: str | None = None, directory: Path = MIGRATIONS_DIR) -> int:
@@ -64,9 +86,10 @@ def seed_launch_content(
         )
     if seed_file is None:
         raise ValueError("--seed-file is required")
-    payload: dict[str, Any] = json.loads(seed_file.read_text(encoding="utf-8"))
-    phase_id = str(payload["phase_id"])
-    version = int(payload["version"])
+    phase_id, version, module, status = validate_seed_payload(
+        seed_file,
+        production=os.getenv("APP_ENV", get_settings().app_env) == "production",
+    )
     url = normalize_database_url(database_url or get_settings().database_url)
     with psycopg.connect(url) as connection:
         with connection.cursor() as cursor:
@@ -82,9 +105,9 @@ def seed_launch_content(
                 (
                     phase_id,
                     version,
-                    str(payload.get("schema_version", "1")),
-                    str(payload.get("status", "published")),
-                    json.dumps(payload["content"]),
+                    module.schema_version,
+                    status,
+                    json.dumps(module.model_dump(mode="json")),
                 ),
             )
         connection.commit()

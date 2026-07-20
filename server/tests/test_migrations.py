@@ -1,6 +1,13 @@
+import json
 from pathlib import Path
+from unittest.mock import Mock
 
-from app.core.migrations import migration_files, normalize_database_url
+from app.core.migrations import (
+    migration_files,
+    normalize_database_url,
+    validate_seed_payload,
+)
+from app.modules.phases.fixtures import LAUNCH_RELOCATION
 
 
 def test_migration_files_are_ordered_sql_files() -> None:
@@ -32,3 +39,21 @@ def test_migrations_are_safe_when_database_init_scripts_precreated_schema() -> N
     assert "CREATE TABLE IF NOT EXISTS card_actions" in sql
     assert "CREATE INDEX IF NOT EXISTS" in sql
     assert "FROM pg_trigger" in sql
+
+
+def test_production_seed_payload_uses_the_publication_content_gate() -> None:
+    seed_file = Mock(spec=Path)
+    seed_file.read_text.return_value = json.dumps(
+        {
+            "phase_id": LAUNCH_RELOCATION.phase_id,
+            "version": 1,
+            "content": LAUNCH_RELOCATION.model_dump(mode="json"),
+        }
+    )
+
+    try:
+        validate_seed_payload(seed_file, production=True)
+    except ValueError as error:
+        assert "reviewed concerns" in str(error)
+    else:
+        raise AssertionError("unsafe production seed unexpectedly passed")
