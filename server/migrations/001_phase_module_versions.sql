@@ -1,4 +1,4 @@
-CREATE TABLE phase_module_versions (
+CREATE TABLE IF NOT EXISTS phase_module_versions (
     phase_id TEXT NOT NULL,
     version INTEGER NOT NULL CHECK (version > 0),
     schema_version TEXT NOT NULL,
@@ -9,7 +9,7 @@ CREATE TABLE phase_module_versions (
     PRIMARY KEY (phase_id, version)
 );
 
-CREATE TABLE phase_module_active (
+CREATE TABLE IF NOT EXISTS phase_module_active (
     phase_id TEXT PRIMARY KEY,
     version INTEGER NOT NULL,
     CONSTRAINT phase_module_active_version_fk
@@ -17,7 +17,7 @@ CREATE TABLE phase_module_active (
         REFERENCES phase_module_versions (phase_id, version)
 );
 
-CREATE INDEX phase_module_versions_published_idx
+CREATE INDEX IF NOT EXISTS phase_module_versions_published_idx
     ON phase_module_versions (phase_id, version DESC)
     WHERE status = 'published';
 
@@ -37,6 +37,17 @@ BEGIN
 END;
 $$;
 
-CREATE TRIGGER phase_module_versions_append_only
-BEFORE UPDATE OR DELETE ON phase_module_versions
-FOR EACH ROW EXECUTE FUNCTION reject_phase_module_version_mutation();
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgname = 'phase_module_versions_append_only'
+          AND tgrelid = 'phase_module_versions'::regclass
+    ) THEN
+        CREATE TRIGGER phase_module_versions_append_only
+        BEFORE UPDATE OR DELETE ON phase_module_versions
+        FOR EACH ROW EXECUTE FUNCTION reject_phase_module_version_mutation();
+    END IF;
+END
+$$;

@@ -1,4 +1,4 @@
-CREATE TABLE phase_enrollments (
+CREATE TABLE IF NOT EXISTS phase_enrollments (
     user_id TEXT NOT NULL,
     phase_id TEXT NOT NULL,
     context JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -8,4 +8,4 @@ CREATE TABLE phase_enrollments (
     PRIMARY KEY (user_id, phase_id)
 );
 
-CREATE INDEX phase_enrollments_phase_idx ON phase_enrollments (phase_id);
+CREATE INDEX IF NOT EXISTS phase_enrollments_phase_idx ON phase_enrollments (phase_id);

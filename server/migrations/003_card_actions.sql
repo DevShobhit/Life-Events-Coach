@@ -1,4 +1,4 @@
-CREATE TABLE card_progress (
+CREATE TABLE IF NOT EXISTS card_progress (
     user_id TEXT NOT NULL,
     phase_id TEXT NOT NULL,
     concern_id TEXT NOT NULL,
@@ -7,7 +7,7 @@ CREATE TABLE card_progress (
     PRIMARY KEY (user_id, phase_id, concern_id)
 );
 
-CREATE TABLE card_actions (
+CREATE TABLE IF NOT EXISTS card_actions (
     user_id TEXT NOT NULL,
     phase_id TEXT NOT NULL,
     concern_id TEXT NOT NULL,
