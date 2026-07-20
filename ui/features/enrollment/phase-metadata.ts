@@ -31,6 +31,37 @@ export function stageMetadata(module: PhaseModule) {
   );
 }
 
+export function stageFieldKey(module?: PhaseModule) {
+  return (
+    module?.onboarding_fields.find((field) =>
+      ["stage", "relocation_stage"].includes(field),
+    ) ?? "stage"
+  );
+}
+
+export function stageValueFromContext(
+  module: PhaseModule | undefined,
+  context: Record<string, string>,
+) {
+  const key = stageFieldKey(module);
+  return (
+    context[key] ??
+    (key === "stage" ? context.relocation_stage : context.stage) ??
+    ""
+  );
+}
+
+export function enrollmentContextFromForm(
+  module: PhaseModule | undefined,
+  values: { context?: Record<string, string>; stage: string },
+) {
+  const context = { ...(values.context ?? {}) };
+  delete context.stage;
+  delete context.relocation_stage;
+  context[stageFieldKey(module)] = values.stage;
+  return context;
+}
+
 export function fieldIsRequired(
   module: PhaseModule,
   field: string,

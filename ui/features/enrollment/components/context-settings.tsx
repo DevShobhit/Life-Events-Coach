@@ -21,10 +21,12 @@ import {
   phaseDescription,
   phaseDisplayName,
   stageMetadata,
+  stageValueFromContext,
 } from "@/features/enrollment/phase-metadata";
 import { useEnrollmentQuery } from "@/features/enrollment/queries";
 import {
   createEnrollmentSchema,
+  type EnrollmentFormInput,
   type EnrollmentFormValues,
 } from "@/features/enrollment/schema";
 import { usePublishedPhasesQuery } from "@/features/phases/queries";
@@ -41,19 +43,19 @@ export function ContextSettings({
 }) {
   const enrollment = useEnrollmentQuery(userId, phaseId);
   const phases = usePublishedPhasesQuery();
-  const mutation = useEnrollmentSaveMutation(userId, phaseId);
   const setActiveStage = useSessionStore((state) => state.setActiveStage);
   const queryClient = useQueryClient();
   const phase = phases.data?.find(
     (publishedPhase) => publishedPhase.module.phase_id === phaseId,
   );
   const phaseModule = phase?.module;
+  const mutation = useEnrollmentSaveMutation(userId, phaseId, phaseModule);
   const fields =
     phaseModule?.onboarding_fields.filter(
       (field) => !["stage", "relocation_stage"].includes(field),
     ) ?? [];
   const configuredStage = phaseModule ? stageMetadata(phaseModule) : undefined;
-  const form = useForm<EnrollmentFormValues>({
+  const form = useForm<EnrollmentFormInput, unknown, EnrollmentFormValues>({
     resolver: zodResolver(createEnrollmentSchema(phaseModule)),
     defaultValues: { context: {}, stage: "" },
   });
@@ -62,10 +64,10 @@ export function ContextSettings({
     if (enrollment.data) {
       form.reset({
         context: enrollment.data.context,
-        stage: enrollment.data.context.stage ?? "",
+        stage: stageValueFromContext(phaseModule, enrollment.data.context),
       });
     }
-  }, [enrollment.data, form]);
+  }, [enrollment.data, form, phaseModule]);
 
   if (enrollment.isLoading || phases.isLoading) {
     return <p aria-live="polite">Loading your context…</p>;
@@ -110,6 +112,7 @@ export function ContextSettings({
           </FieldLabel>
           <Input
             aria-invalid={Boolean(form.formState.errors.stage)}
+            aria-describedby="settings-stage-description settings-stage-error"
             autoComplete="off"
             id="settings-stage"
             required={
@@ -125,11 +128,14 @@ export function ContextSettings({
             }
             {...form.register("stage")}
           />
-          <FieldDescription>
+          <FieldDescription id="settings-stage-description">
             {configuredStage?.description ??
               "This changes which roadmap steps appear first."}
           </FieldDescription>
-          <FieldError errors={[form.formState.errors.stage]} />
+          <FieldError
+            id="settings-stage-error"
+            errors={[form.formState.errors.stage]}
+          />
         </Field>
         {fields.map((field) => {
           const metadata = phaseModule
@@ -139,8 +145,12 @@ export function ContextSettings({
             ? fieldIsRequired(phaseModule, field)
             : false;
 
+          const error = form.formState.errors.context?.[field];
+          const descriptionId = `settings-${field}-description`;
+          const errorId = `settings-${field}-error`;
+
           return (
-            <Field key={field}>
+            <Field data-invalid={Boolean(error)} key={field}>
               <FieldLabel htmlFor={`settings-${field}`}>
                 {metadata?.label ?? fieldLabel(field)}{" "}
                 <span className="font-normal">
@@ -148,14 +158,19 @@ export function ContextSettings({
                 </span>
               </FieldLabel>
               <Input
+                aria-describedby={`${descriptionId} ${errorId}`}
+                aria-invalid={Boolean(error)}
                 autoComplete="off"
                 id={`settings-${field}`}
                 required={required}
                 {...form.register(`context.${field}`)}
               />
               {metadata?.description ? (
-                <FieldDescription>{metadata.description}</FieldDescription>
+                <FieldDescription id={descriptionId}>
+                  {metadata.description}
+                </FieldDescription>
               ) : null}
+              <FieldError id={errorId} errors={[error]} />
             </Field>
           );
         })}

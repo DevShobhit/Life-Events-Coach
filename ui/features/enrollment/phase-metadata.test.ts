@@ -1,12 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import type { PhaseModule } from "@/lib/api/types";
 import {
+  enrollmentContextFromForm,
   fieldIsRequired,
   fieldLabel,
   fieldMetadata,
   phaseDescription,
   phaseDisplayName,
   stageMetadata,
+  stageValueFromContext,
 } from "./phase-metadata";
 
 const module: PhaseModule = {
@@ -82,5 +84,16 @@ describe("phase metadata helpers", () => {
       ),
     ).toBe(false);
     expect(fieldIsRequired(module, "unknown_field")).toBe(false);
+  });
+
+  test("round-trips a configured legacy stage key through the UI form", () => {
+    const context = { origin_country: "India", relocation_stage: "preparing" };
+    expect(stageValueFromContext(module, context)).toBe("preparing");
+    expect(
+      enrollmentContextFromForm(module, {
+        stage: "arrived",
+        context: { origin_country: "India", stage: "stale" },
+      }),
+    ).toEqual({ origin_country: "India", relocation_stage: "arrived" });
   });
 });
