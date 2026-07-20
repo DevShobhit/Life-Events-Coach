@@ -128,9 +128,12 @@ app.add_middleware(RequestContextMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(settings.allowed_origins),
+    allow_origin_regex=(
+        r"^https?://[^/]+$" if settings.app_env == "development" else None
+    ),
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT"],
-    allow_headers=["X-Request-ID", "Content-Type"],
+    allow_headers=["X-Request-ID", "X-User-ID", "Content-Type"],
 )
 instrument_fastapi(app)
 

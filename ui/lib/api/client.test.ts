@@ -149,4 +149,23 @@ describe("LifeCurriculumClient", () => {
       "network unavailable",
     );
   });
+
+  test("invokes a receiver-sensitive fetch implementation with globalThis", async () => {
+    const fetcher = function (this: typeof globalThis, input: RequestInfo | URL) {
+      expect(this).toBe(globalThis);
+      expect(String(input)).toContain("/phases");
+      return Promise.resolve(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    };
+    const client = new LifeCurriculumClient({
+      baseUrl: "https://api.example.test",
+      fetcher,
+    });
+
+    await expect(client.phases()).resolves.toEqual([]);
+  });
 });

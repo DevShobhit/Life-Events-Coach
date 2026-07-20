@@ -9,7 +9,10 @@ class Settings(BaseSettings):
     app_env: Literal["development", "test", "production"] = "development"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     otel_exporter_otlp_endpoint: AnyHttpUrl | None = None
-    allowed_origins: tuple[str, ...] = ("http://localhost:3000",)
+    allowed_origins: tuple[str, ...] = (
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    )
     database_url: str = (
         "postgresql+asyncpg://postgres:postgres@localhost:5432/lifecurriculum"
     )

@@ -22,6 +22,52 @@ def test_request_id_is_preserved_and_trace_header_is_safe() -> None:
     assert len(response.headers["X-Trace-ID"]) in {0, 32}
 
 
+def test_browser_preflight_allows_development_user_scope_header() -> None:
+    with TestClient(app) as client:
+        response = client.options(
+            "/roadmap/local-dev-user/relocation?stage=arrived",
+            headers={
+                "Origin": "http://127.0.0.1:3000",
+                "Access-Control-Request-Method": "GET",
+                "Access-Control-Request-Headers": "content-type,x-request-id,x-user-id",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.headers["Access-Control-Allow-Origin"] == "http://127.0.0.1:3000"
+    assert "X-User-ID" in response.headers["Access-Control-Allow-Headers"]
+
+
+def test_browser_preflight_allows_any_local_development_port() -> None:
+    with TestClient(app) as client:
+        response = client.options(
+            "/roadmap/local-dev-user/relocation?stage=arrived",
+            headers={
+                "Origin": "http://localhost:3001",
+                "Access-Control-Request-Method": "GET",
+                "Access-Control-Request-Headers": "x-user-id",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.headers["Access-Control-Allow-Origin"] == "http://localhost:3001"
+
+
+def test_browser_preflight_allows_non_loopback_development_origin() -> None:
+    with TestClient(app) as client:
+        response = client.options(
+            "/roadmap/local-dev-user/relocation?stage=arrived",
+            headers={
+                "Origin": "http://dev-machine:3000",
+                "Access-Control-Request-Method": "GET",
+                "Access-Control-Request-Headers": "x-user-id",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.headers["Access-Control-Allow-Origin"] == "http://dev-machine:3000"
+
+
 def test_metrics_endpoint_exposes_http_request_metric() -> None:
     client = TestClient(app)
 
