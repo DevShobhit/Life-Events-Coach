@@ -37,7 +37,9 @@ export type RoadmapCard = {
   bullets: string[];
   why_now: string;
   citation_id: string;
+  citation_title: string;
   citation_url: string;
+  visual_url: string | null;
   reason: string;
 };
 
@@ -82,7 +84,9 @@ function isRoadmapCard(value: unknown): value is RoadmapCard {
     Array.isArray(card.bullets) &&
     typeof card.why_now === "string" &&
     typeof card.citation_id === "string" &&
-    typeof card.citation_url === "string"
+    typeof card.citation_title === "string" &&
+    typeof card.citation_url === "string" &&
+    (typeof card.visual_url === "string" || card.visual_url === null)
   );
 }
 

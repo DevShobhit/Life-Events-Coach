@@ -72,7 +72,8 @@ export default function NowPage() {
         bullets: current.bullets,
         whyNow: current.why_now,
         hiddenFactor: current.hidden_factor,
-        source: { title: current.citation_id, url: current.citation_url },
+        source: { title: current.citation_title, url: current.citation_url },
+        visualUrl: current.visual_url ?? undefined,
       }
     : null;
   const submitAction = async (concernId: string, action: CardAction) => {
