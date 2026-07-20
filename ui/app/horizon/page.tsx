@@ -31,6 +31,7 @@ import { horizonGroupLabel } from "@/features/roadmap/horizon";
 import { useRoadmapActionMutation } from "@/features/roadmap/mutations";
 import { useRoadmapQuery } from "@/features/roadmap/queries";
 import type { RoadmapCard } from "@/lib/api/types";
+import { useRouteLoadLogging } from "@/lib/logging/route-load";
 import { useSessionStore } from "@/lib/state/session";
 import { getUserFacingError } from "@/lib/ux/feedback";
 
@@ -50,6 +51,12 @@ export default function HorizonPage() {
     : mutation.error
       ? getUserFacingError(mutation.error)
       : null;
+  useRouteLoadLogging("horizon", {
+    enabled: Boolean(userId.trim() && phaseId.trim() && stage.trim()),
+    isLoading,
+    hasData: Boolean(roadmap),
+    error: queryError,
+  });
   const [selectedCard, setSelectedCard] = useState<RoadmapCard | null>(null);
   const [confirmRemoval, setConfirmRemoval] = useState(false);
   const selectedTriggerRef = useRef<HTMLButtonElement | null>(null);

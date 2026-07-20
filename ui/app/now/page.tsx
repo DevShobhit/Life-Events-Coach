@@ -18,6 +18,7 @@ import {
 } from "@/features/roadmap/mutations";
 import { useRoadmapQuery } from "@/features/roadmap/queries";
 import type { CardAction } from "@/lib/api/types";
+import { useRouteLoadLogging } from "@/lib/logging/route-load";
 import { nextSkipCount, shouldAskRelevance } from "@/lib/roadmap/transitions";
 import { useSessionStore } from "@/lib/state/session";
 import {
@@ -39,6 +40,12 @@ export default function NowPage() {
       : null;
   const isLoading = query.isLoading;
   const isCached = query.isPlaceholderData;
+  useRouteLoadLogging("now", {
+    enabled: Boolean(userId.trim() && phaseId.trim() && stage.trim()),
+    isLoading,
+    hasData: Boolean(roadmap),
+    error: query.error,
+  });
   const offlineMessage =
     mutation.error && shouldQueueRoadmapAction(mutation.error)
       ? offlineQueuedMessage
