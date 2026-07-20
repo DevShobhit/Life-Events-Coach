@@ -1,4 +1,5 @@
 import { AlertCircle, RefreshCw } from "lucide-react";
+import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,6 +32,25 @@ export function ErrorState({ onRetry }: { onRetry: () => void }) {
           <span>Try again, or return to Now when you are ready.</span>
           <Button className="min-h-11" onClick={onRetry} variant="outline">
             <RefreshCw aria-hidden="true" /> Retry
+          </Button>
+        </AlertDescription>
+      </Alert>
+    </main>
+  );
+}
+
+export function SetupState() {
+  return (
+    <main
+      className="mx-auto flex w-full max-w-3xl flex-1 items-center px-6 py-10 sm:px-10"
+      id="main-content"
+    >
+      <Alert>
+        <AlertTitle>Choose a path to get started</AlertTitle>
+        <AlertDescription>
+          <span className="block">Your roadmap is not set up yet.</span>
+          <Button className="mt-3 min-h-11" render={<Link href="/onboarding" />}>
+            Go to onboarding
           </Button>
         </AlertDescription>
       </Alert>

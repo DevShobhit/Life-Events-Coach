@@ -20,7 +20,7 @@ export function roadmapQueryOptions(
       browserRoadmapOfflineStore()?.write(userId, phaseId, roadmap);
       return roadmap;
     },
-    enabled: Boolean(userId && phaseId),
+    enabled: Boolean(userId.trim() && phaseId.trim() && stage.trim()),
     staleTime: ROADMAP_QUERY_STALE_TIME_MS,
     refetchOnReconnect: false,
     placeholderData: () =>

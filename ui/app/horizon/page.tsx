@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { InlineError } from "@/components/feedback/inline-error";
-import { RouteError, RouteLoading } from "@/components/route-states";
+import { RouteError, RouteLoading, SetupState } from "@/components/route-states";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,6 +53,8 @@ export default function HorizonPage() {
   useEffect(() => {
     if (!selectedCard) selectedTriggerRef.current?.focus();
   }, [selectedCard]);
+
+  if (!userId.trim() || !phaseId.trim() || !stage.trim()) return <SetupState />;
 
   const removeAsNotRelevant = async () => {
     if (!selectedCard) return;

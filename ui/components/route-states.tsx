@@ -4,6 +4,8 @@ import { Logo } from "@/components/logo";
 export const RouteLoading = LoadingState;
 export const RouteError = ErrorState;
 
+export { SetupState } from "@/components/feedback/route-state";
+
 export function RouteNotFound() {
   return (
     <main
