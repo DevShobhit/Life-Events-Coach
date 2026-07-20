@@ -1,4 +1,5 @@
 import { appConfig } from "@/lib/config/app-config";
+import { apiLogger } from "@/lib/logging/logger";
 import { ApiError } from "./errors";
 import type {
   AskResponse,
@@ -118,6 +119,13 @@ export class LifeCurriculumClient {
   ): Promise<T> {
     const requestId = crypto.randomUUID();
     const { userId, ...requestInit } = options;
+    const method = requestInit.method ?? "GET";
+    const startedAt = performance.now();
+    apiLogger.debug("api_request_started", {
+      method,
+      path,
+      requestId,
+    });
     const response = await this.fetcher(`${this.baseUrl}${path}`, {
       ...requestInit,
       body: requestInit.body ? JSON.stringify(requestInit.body) : undefined,
@@ -133,6 +141,14 @@ export class LifeCurriculumClient {
       const body = (await response.json().catch(() => null)) as {
         error?: { code?: string; request_id?: string | null };
       } | null;
+      apiLogger.warn("api_request_failed", {
+        method,
+        path,
+        requestId,
+        status: response.status,
+        durationMs: Math.round(performance.now() - startedAt),
+        errorCode: body?.error?.code ?? "http_error",
+      });
       throw new ApiError(
         body?.error?.code ?? "http_error",
         body?.error?.request_id ?? response.headers.get("X-Request-ID"),
@@ -140,6 +156,13 @@ export class LifeCurriculumClient {
       );
     }
 
+    apiLogger.debug("api_request_succeeded", {
+      method,
+      path,
+      requestId,
+      status: response.status,
+      durationMs: Math.round(performance.now() - startedAt),
+    });
     return (await response.json()) as T;
   }
 }
