@@ -23,6 +23,12 @@ def test_roadmap_contains_current_card_horizon_groups_and_citations() -> None:
     assert len(roadmap.now) <= 5
     assert roadmap.horizon[0].cards[0].citation_id
 
+    card = roadmap.horizon[0].cards[0]
+    assert card.body
+    assert card.visual_url is None or card.visual_url.startswith("http")
+    assert card.citation_title
+    assert card.citation_source_type
+
 
 def test_action_response_resequences_and_removes_done_card() -> None:
     state = InMemoryRoadmapState()

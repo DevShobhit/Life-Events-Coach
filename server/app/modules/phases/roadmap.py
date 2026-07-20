@@ -20,8 +20,13 @@ class RoadmapCard(BaseModel):
     hidden_factor: bool
     bullets: list[str]
     why_now: str
+    body: str
+    visual_url: str | None
     citation_id: str
+    citation_title: str
     citation_url: str
+    citation_source_type: str
+    citation_reviewed_on: date
     reason: str
 
 
@@ -82,8 +87,17 @@ def assemble_roadmap(
             hidden_factor=item.concern.hidden_factor,
             bullets=item.concern.bullets,
             why_now=item.concern.why_now,
+            body=item.concern.card.body,
+            visual_url=(
+                str(item.concern.card.visual_url)
+                if item.concern.card.visual_url is not None
+                else None
+            ),
             citation_id=item.concern.citation.id,
+            citation_title=item.concern.citation.title,
             citation_url=str(item.concern.citation.url),
+            citation_source_type=item.concern.citation.source_type.value,
+            citation_reviewed_on=item.concern.citation.reviewed_on,
             reason=item.reason,
         )
 
