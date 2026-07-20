@@ -8,6 +8,9 @@ export function useEnrollmentSaveMutation(userId: string, phaseId: string) {
   return useMutation({
     mutationKey: ["enrollment", "save", userId, phaseId],
     mutationFn: (values: EnrollmentFormValues) =>
-      apiClient.saveEnrollment(userId, phaseId, { stage: values.stage }),
+      apiClient.saveEnrollment(userId, phaseId, {
+        ...(values.context ?? {}),
+        stage: values.stage,
+      }),
   });
 }
