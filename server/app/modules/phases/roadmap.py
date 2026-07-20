@@ -138,7 +138,7 @@ def apply_roadmap_action(
     state.progress[key] = apply_action(
         current,
         action,
-        skip_threshold=2,
+        skip_threshold=module.thresholds.skip_count_for_relevance_check,
     )
     return assemble_roadmap(
         module,
@@ -218,7 +218,7 @@ async def apply_persistent_action(
         phase_id=module.phase_id,
         concern_id=concern_id,
         action=action,
-        skip_threshold=2,
+        skip_threshold=module.thresholds.skip_count_for_relevance_check,
         idempotency_key=idempotency_key,
     )
     enrollment = await EnrollmentRepository(session).get(user_id, module.phase_id)
