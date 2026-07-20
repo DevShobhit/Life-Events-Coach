@@ -91,6 +91,7 @@ async function checkOptionalRoadmap() {
 
 await Promise.all([
   checkApiEndpoint("health", "/health/live"),
+  checkApiEndpoint("readiness", "/health/ready"),
   checkApiEndpoint("phase_catalog", "/phases"),
   checkOptionalRoadmap(),
   ...checks.map(checkRoute),
