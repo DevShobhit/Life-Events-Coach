@@ -28,12 +28,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { horizonGroupLabel } from "@/features/roadmap/horizon";
-import { useRoadmapActionMutation } from "@/features/roadmap/mutations";
+import {
+  offlineQueuedMessage,
+  useRoadmapActionMutation,
+} from "@/features/roadmap/mutations";
 import { useRoadmapQuery } from "@/features/roadmap/queries";
 import type { RoadmapCard } from "@/lib/api/types";
 import { useRouteLoadLogging } from "@/lib/logging/route-load";
 import { useSessionStore } from "@/lib/state/session";
-import { getUserFacingError } from "@/lib/ux/feedback";
+import {
+  getUserFacingError,
+  shouldQueueRoadmapAction,
+} from "@/lib/ux/feedback";
 
 export default function HorizonPage() {
   const userId = useSessionStore((state) => state.developmentUserId);
@@ -48,8 +54,12 @@ export default function HorizonPage() {
   } = useRoadmapQuery(userId, phaseId, stage);
   const error = queryError
     ? getUserFacingError(queryError)
-    : mutation.error
+    : mutation.error && !shouldQueueRoadmapAction(mutation.error)
       ? getUserFacingError(mutation.error)
+      : null;
+  const offlineMessage =
+    mutation.error && shouldQueueRoadmapAction(mutation.error)
+      ? offlineQueuedMessage
       : null;
   useRouteLoadLogging("horizon", {
     enabled: Boolean(userId.trim() && phaseId.trim() && stage.trim()),
@@ -103,6 +113,11 @@ export default function HorizonPage() {
       </div>
       {error ? (
         <InlineError message={error} onRetry={() => void refetch()} />
+      ) : null}
+      {offlineMessage ? (
+        <output aria-live="polite" className="text-sm text-muted-foreground">
+          {offlineMessage}
+        </output>
       ) : null}
       {roadmap?.horizon.length ? (
         <div className="space-y-8">

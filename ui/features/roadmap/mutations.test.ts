@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { optimisticallyRemove } from "./mutations";
+import { ApiError } from "@/lib/api/errors";
+import { offlineQueuedMessage, optimisticallyRemove, roadmapMutationError } from "./mutations";
 import type { RoadmapResponse } from "./types";
 
 const roadmap: RoadmapResponse = {
@@ -40,5 +41,11 @@ describe("roadmap optimistic updates", () => {
     const next = optimisticallyRemove(roadmap, "first");
     expect(next?.now.map((card) => card.concern_id)).toEqual(["second"]);
     expect(next?.current?.concern_id).toBe("second");
+  });
+
+  test("uses the offline recovery message for queueable failures", () => {
+    expect(roadmapMutationError(new ApiError("dependency_unavailable", null, 503))).toBe(
+      offlineQueuedMessage,
+    );
   });
 });
