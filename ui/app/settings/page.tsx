@@ -1,9 +1,11 @@
 "use client";
 
+import { ContextSettings } from "@/features/enrollment/components/context-settings";
 import { useSessionStore } from "@/lib/state/session";
 
 export default function SettingsPage() {
   const developmentUserId = useSessionStore((state) => state.developmentUserId);
+  const activePhase = useSessionStore((state) => state.activePhase);
   const reducedMotion = useSessionStore((state) => state.reducedMotion);
   const setReducedMotion = useSessionStore((state) => state.setReducedMotion);
 
@@ -23,6 +25,20 @@ export default function SettingsPage() {
           Only preferences supported by the current client are shown here.
         </p>
       </div>
+      <section
+        aria-labelledby="context-heading"
+        className="space-y-4 rounded-lg border border-border bg-card p-5"
+      >
+        <div>
+          <h2 className="font-medium" id="context-heading">
+            Phase &amp; context
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Update the details that shape your roadmap.
+          </p>
+        </div>
+        <ContextSettings phaseId={activePhase} userId={developmentUserId} />
+      </section>
       <section
         className="space-y-4 rounded-lg border border-border bg-card p-5"
         aria-labelledby="motion-heading"

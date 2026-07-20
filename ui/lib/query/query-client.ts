@@ -1,5 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 
+export const ROADMAP_QUERY_STALE_TIME_MS = 30_000;
+
 export function isTransientQueryError(error: unknown): boolean {
   const status =
     error instanceof Error && "status" in error ? error.status : undefined;
@@ -13,6 +15,7 @@ export function isTransientQueryError(error: unknown): boolean {
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      refetchOnReconnect: false,
       retry: (failureCount, error) =>
         failureCount < 2 && isTransientQueryError(error),
     },

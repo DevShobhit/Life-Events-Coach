@@ -4,6 +4,10 @@ import { useEffect } from "react";
 import { submitRoadmapAction } from "@/features/roadmap/api";
 import { roadmapQueryKeys } from "@/features/roadmap/query-keys";
 import { browserRoadmapOfflineStore } from "@/lib/offline/roadmap-cache";
+import {
+  replayQueuedRoadmapActions,
+  toRoadmapActionPayload,
+} from "@/lib/offline/replay-roadmap-actions";
 import { queryClient } from "@/lib/query/query-client";
 
 export function OfflineSync() {
@@ -14,15 +18,18 @@ export function OfflineSync() {
     const replay = async () => {
       const store = browserRoadmapOfflineStore();
       if (!store || !navigator.onLine) return;
-      await store.replay(async (action) => {
-        await submitRoadmapAction(action.userId, action.phaseId, {
-          concernId: action.concernId,
-          action: action.action,
-          idempotencyKey: action.idempotencyKey,
-        });
-        await queryClient.invalidateQueries({
-          queryKey: roadmapQueryKeys.detail(action.userId, action.phaseId),
-        });
+      await replayQueuedRoadmapActions({
+        replay: (execute) => store.replay(execute).then(() => undefined),
+        submit: (action) =>
+          submitRoadmapAction(
+            action.userId,
+            action.phaseId,
+            toRoadmapActionPayload(action),
+          ).then(() => undefined),
+        refresh: (userId, phaseId) =>
+          queryClient.invalidateQueries({
+            queryKey: roadmapQueryKeys.detail(userId, phaseId),
+          }),
       });
     };
 

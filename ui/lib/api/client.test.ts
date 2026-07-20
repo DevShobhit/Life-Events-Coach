@@ -115,29 +115,24 @@ describe("LifeCurriculumClient", () => {
     );
   });
 
-  test("retries one transient dependency failure", async () => {
+  test("does not retry transient read failures inside the API client", async () => {
     let attempts = 0;
     const client = new LifeCurriculumClient({
       fetcher: async () => {
         attempts += 1;
-        if (attempts === 1) {
-          return Response.json(
-            { error: { code: "dependency_unavailable", request_id: "req-1" } },
-            { status: 503 },
-          );
-        }
-        return Response.json({
-          phase_id: "relocation",
-          version: 1,
-          now: [],
-          current: null,
-          horizon: [],
-        });
+        return Response.json(
+          { error: { code: "dependency_unavailable", request_id: "req-1" } },
+          { status: 503 },
+        );
       },
     });
 
-    await client.roadmap("dev-user", "relocation");
+    await expect(
+      client.roadmap("dev-user", "relocation"),
+    ).rejects.toMatchObject({
+      status: 503,
+    });
 
-    expect(attempts).toBe(2);
+    expect(attempts).toBe(1);
   });
 });
