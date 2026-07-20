@@ -6,12 +6,24 @@ describe("service worker registration lifecycle", () => {
   test("observes worker state changes and removes listeners on cleanup", () => {
     expect(source).toContain("statechange");
     expect(source).toContain('removeEventListener("statechange"');
-    expect(source).toContain("service_worker.state_changed");
+    expect(source).toContain("service_worker.state.changed");
   });
 
   test("reports replay failures without leaving an unhandled promise", () => {
     expect(source).toContain("offline.replay.failed");
     expect(source).toContain("replayWithDiagnostics");
     expect(source).toContain("removeEventListener(\"online\", replayWithDiagnostics)");
+  });
+
+  test("uses the structured service-worker lifecycle event names", () => {
+    for (const event of [
+      "service_worker.registration.started",
+      "service_worker.registration.completed",
+      "service_worker.registration.failed",
+      "service_worker.update.available",
+      "service_worker.controller.changed",
+    ]) {
+      expect(source).toContain(event);
+    }
   });
 });

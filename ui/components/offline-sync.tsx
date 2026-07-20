@@ -16,27 +16,27 @@ export function OfflineSync() {
     let disposed = false;
     let cleanupRegistration = () => {};
     if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
-      logDevelopment("service_worker.registration_started");
+      logDevelopment("service_worker.registration.started");
       void navigator.serviceWorker
         .register("/sw.js", { updateViaCache: "none" })
         .then((registration) => {
           if (disposed) return;
-          logDevelopment("service_worker.registration_completed", {
+          logDevelopment("service_worker.registration.completed", {
             scope: registration.scope,
             state: registration.active?.state ?? registration.installing?.state,
           });
           const handleUpdateFound = () => {
-            logDevelopment("service_worker.update_available");
+            logDevelopment("service_worker.update.available");
           };
           const worker =
             registration.installing ?? registration.waiting ?? registration.active;
           const handleStateChange = () => {
-            logDevelopment("service_worker.state_changed", {
+            logDevelopment("service_worker.state.changed", {
               state: worker?.state ?? "unknown",
             });
           };
           const handleControllerChange = () => {
-            logDevelopment("service_worker.controller_changed", {
+            logDevelopment("service_worker.controller.changed", {
               controlled: Boolean(navigator.serviceWorker.controller),
             });
           };
@@ -56,12 +56,12 @@ export function OfflineSync() {
           };
         })
         .catch((error: unknown) => {
-          logDevelopment("service_worker.registration_failed", {
+          logDevelopment("service_worker.registration.failed", {
             errorType: error instanceof Error ? error.name : "unknown",
           });
         });
     } else {
-      logDevelopment("service_worker.registration_skipped", {
+      logDevelopment("service_worker.registration.skipped", {
         enabled: "serviceWorker" in navigator,
         environment: process.env.NODE_ENV,
       });
