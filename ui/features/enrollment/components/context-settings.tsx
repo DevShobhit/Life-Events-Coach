@@ -78,7 +78,7 @@ export function ContextSettings({
     await mutation.mutateAsync(values);
     setActiveStage(values.stage);
     await queryClient.invalidateQueries({
-      queryKey: roadmapQueryKeys.detail(userId, phaseId),
+      queryKey: roadmapQueryKeys.detail(userId, phaseId, values.stage),
     });
   };
 

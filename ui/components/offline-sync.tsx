@@ -3,13 +3,13 @@
 import { useEffect } from "react";
 import { submitRoadmapAction } from "@/features/roadmap/api";
 import { roadmapQueryKeys } from "@/features/roadmap/query-keys";
+import { logDevelopment } from "@/lib/logging/logger";
 import {
   replayQueuedRoadmapActions,
   toRoadmapActionPayload,
 } from "@/lib/offline/replay-roadmap-actions";
 import { browserRoadmapOfflineStore } from "@/lib/offline/roadmap-cache";
 import { queryClient } from "@/lib/query/query-client";
-import { logDevelopment } from "@/lib/logging/logger";
 
 export function OfflineSync() {
   useEffect(() => {
@@ -67,12 +67,12 @@ export function OfflineSync() {
           submitRoadmapAction(
             action.userId,
             action.phaseId,
-            "arrived",
+            action.stage,
             toRoadmapActionPayload(action),
           ).then(() => undefined),
-        refresh: (userId, phaseId) =>
+        refresh: (userId, phaseId, stage) =>
           queryClient.invalidateQueries({
-            queryKey: roadmapQueryKeys.detail(userId, phaseId),
+            queryKey: roadmapQueryKeys.detail(userId, phaseId, stage),
           }),
       });
     };
