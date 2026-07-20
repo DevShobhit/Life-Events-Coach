@@ -8,6 +8,8 @@ const apiUrl = (process.env.SMOKE_API_URL ?? "http://localhost:8000").replace(
   /\/$/,
   "",
 );
+const smokeUserId = process.env.SMOKE_USER_ID?.trim();
+const smokePhaseId = process.env.SMOKE_PHASE_ID?.trim() ?? "relocation";
 
 type Check = { name: string; url: string; expected: RegExp };
 
@@ -46,31 +48,53 @@ async function checkRoute(check: Check) {
   }
 }
 
-async function checkApiHealth() {
+async function checkApiEndpoint(
+  name: string,
+  path: string,
+  options: RequestInit = {},
+  displayPath = path,
+) {
   try {
-    const response = await fetch(`${apiUrl}/health/live`);
+    const response = await fetch(`${apiUrl}${path}`, options);
     console.log(
       JSON.stringify({
         kind: "api_smoke",
-        url: `${apiUrl}/health/live`,
+        name,
+        path: displayPath,
         status: response.status,
         requestId: response.headers.get("x-request-id"),
         ok: response.ok,
       }),
     );
+    if (!response.ok) process.exitCode = 1;
   } catch (error) {
     console.error(
       JSON.stringify({
         kind: "api_smoke",
-        url: `${apiUrl}/health/live`,
+        name,
+        path: displayPath,
         error: error instanceof Error ? error.name : "unknown",
         ok: false,
       }),
     );
+    process.exitCode = 1;
   }
 }
 
-await Promise.all([checkApiHealth(), ...checks.map(checkRoute)]);
+async function checkOptionalRoadmap() {
+  if (!smokeUserId) return;
+  const requestPath = `/roadmap/${encodeURIComponent(smokeUserId)}/${encodeURIComponent(smokePhaseId)}?stage=arrived`;
+  await checkApiEndpoint("roadmap", requestPath, {
+    headers: { "X-User-ID": smokeUserId },
+  }, `/roadmap/:user/${encodeURIComponent(smokePhaseId)}?stage=arrived`);
+}
+
+await Promise.all([
+  checkApiEndpoint("health", "/health/live"),
+  checkApiEndpoint("phase_catalog", "/phases"),
+  checkOptionalRoadmap(),
+  ...checks.map(checkRoute),
+]);
 
 if (process.exitCode) {
   throw new Error("Route smoke failed; inspect the structured records above.");
