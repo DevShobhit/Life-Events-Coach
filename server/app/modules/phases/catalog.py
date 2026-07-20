@@ -4,7 +4,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import DependencyUnavailableError
 from app.modules.phases.cache import ActivePhaseModuleCache, active_phase_module_cache
-from app.modules.phases.fixtures import LAUNCH_RELOCATION, LAUNCH_RELOCATION_VERSION
 from app.modules.phases.repository import PhaseModuleRepository
 from app.modules.phases.schemas import PhaseModule
 
@@ -17,18 +16,15 @@ class PublishedPhaseModule(BaseModel):
     module: PhaseModule
 
 
-def list_catalog() -> list[PublishedPhaseModule]:
+async def list_persisted_modules(session: AsyncSession) -> list[PublishedPhaseModule]:
+    try:
+        active = await PhaseModuleRepository(session).list_active_versioned()
+    except Exception as error:
+        raise DependencyUnavailableError() from error
     return [
-        PublishedPhaseModule(
-            version=LAUNCH_RELOCATION_VERSION, module=LAUNCH_RELOCATION
-        )
+        PublishedPhaseModule(version=version, module=module)
+        for version, module in active
     ]
-
-
-def get_module(phase_id: str) -> PublishedPhaseModule | None:
-    return next(
-        (entry for entry in list_catalog() if entry.module.phase_id == phase_id), None
-    )
 
 
 async def get_persisted_module(

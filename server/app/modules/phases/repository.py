@@ -69,3 +69,20 @@ class PhaseModuleRepository:
         if row is None:
             return None
         return row.version, PhaseModule.model_validate(row.content)
+
+    async def list_active_versioned(self) -> list[tuple[int, PhaseModule]]:
+        statement = (
+            select(PhaseModuleVersion)
+            .join(
+                PhaseModuleActive,
+                (PhaseModuleActive.phase_id == PhaseModuleVersion.phase_id)
+                & (PhaseModuleActive.version == PhaseModuleVersion.version),
+            )
+            .where(PhaseModuleVersion.status == "published")
+            .order_by(PhaseModuleVersion.phase_id)
+        )
+        result = await self._session.execute(statement)
+        return [
+            (row.version, PhaseModule.model_validate(row.content))
+            for row in result.scalars().all()
+        ]

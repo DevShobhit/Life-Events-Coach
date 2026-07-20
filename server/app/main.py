@@ -40,12 +40,11 @@ from app.modules.phases.ask_api import (
 )
 from app.modules.phases.catalog import (
     PublishedPhaseModule,
-    get_module,
     get_persisted_module,
-    list_catalog,
+    list_persisted_modules,
 )
-from app.modules.phases.enrollment_repository import EnrollmentRepository
 from app.modules.phases.enrollment import validate_enrollment
+from app.modules.phases.enrollment_repository import EnrollmentRepository
 from app.modules.phases.freshness import FreshnessReport, freshness_report
 from app.modules.phases.grounding import GroundingTimeout
 from app.modules.phases.lifecycle import CardAction
@@ -170,13 +169,18 @@ async def ready_health(
 
 
 @app.get("/phases", response_model=list[PublishedPhaseModule], tags=["phases"])
-async def phase_catalog() -> list[PublishedPhaseModule]:
-    return list_catalog()
+async def phase_catalog(
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+) -> list[PublishedPhaseModule]:
+    return await list_persisted_modules(session)
 
 
 @app.get("/phases/{phase_id}", response_model=PublishedPhaseModule, tags=["phases"])
-async def phase_module(phase_id: str) -> PublishedPhaseModule:
-    module = get_module(phase_id)
+async def phase_module(
+    phase_id: str,
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+) -> PublishedPhaseModule:
+    module = await get_persisted_module(session, phase_id)
     if module is None:
         raise NotFoundError("phase")
     return module
@@ -369,7 +373,9 @@ async def roadmap_action(
 
 
 @app.get("/metrics", include_in_schema=False)
-async def metrics(metrics_token: str | None = Header(None, alias="X-Metrics-Token")) -> Response:
+async def metrics(
+    metrics_token: str | None = Header(None, alias="X-Metrics-Token")
+) -> Response:
     configured_token = settings.metrics_access_token
     if settings.app_env == "production" and not configured_token:
         return Response(status_code=404)

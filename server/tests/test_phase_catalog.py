@@ -1,5 +1,26 @@
+from collections.abc import AsyncIterator
+
+from app.core.database import get_session
 from app.main import app
+from app.modules.phases.fixtures import LAUNCH_RELOCATION
+from app.modules.phases.orm_models import Base
+from app.modules.phases.repository import PhaseModuleRepository
 from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+
+async def override_session() -> AsyncIterator[AsyncSession]:
+    engine = create_async_engine("sqlite+aiosqlite://")
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with factory() as session:
+        await PhaseModuleRepository(session).publish(LAUNCH_RELOCATION, version=1)
+        yield session
+    await engine.dispose()
+
+
+app.dependency_overrides[get_session] = override_session
 
 
 def test_catalog_exposes_only_the_launch_relocation_module() -> None:
