@@ -3,9 +3,11 @@
 import { Compass, House, MessageCircleQuestion, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 import { OfflineSync } from "@/components/offline-sync";
 import { Button } from "@/components/ui/button";
+import { useSessionStore } from "@/lib/state/session";
 import { cn } from "@/lib/utils";
 
 const navigation = [
@@ -17,6 +19,13 @@ const navigation = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const reducedMotion = useSessionStore((state) => state.reducedMotion);
+
+  useEffect(() => {
+    document.documentElement.dataset.reducedMotion = reducedMotion
+      ? "true"
+      : "false";
+  }, [reducedMotion]);
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
@@ -39,6 +48,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               ))}
             </nav>
             <Button
+              aria-label="Ask about your path"
               className="min-h-11 gap-2"
               onClick={() => router.push("/now?ask=1")}
               variant="outline"
@@ -50,7 +60,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col pb-20 md:pb-0">{children}</div>
+      <div className="flex flex-1 flex-col pb-20 md:pb-0" id="main-content">
+        {children}
+      </div>
 
       <nav
         aria-label="Mobile navigation"

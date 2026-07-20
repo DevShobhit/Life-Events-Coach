@@ -5,10 +5,15 @@ import { useCallback, useEffect, useState } from "react";
 import { apiClient } from "@/lib/api/client";
 import type { CardAction, RoadmapResponse } from "@/lib/api/types";
 import { browserRoadmapOfflineStore } from "@/lib/offline/roadmap-cache";
+import {
+  getUserFacingError,
+  shouldQueueRoadmapAction,
+} from "@/lib/ux/feedback";
 
 export function useRoadmap(userId: string, phaseId: string) {
   const [roadmap, setRoadmap] = useState<RoadmapResponse | null>(null);
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [offlineMessage, setOfflineMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pendingAction, setPendingAction] = useState<CardAction | null>(null);
   const [isCached, setIsCached] = useState(false);
@@ -41,11 +46,7 @@ export function useRoadmap(userId: string, phaseId: string) {
           setRoadmap(cachedRoadmap);
           setIsCached(true);
         } else {
-          setError(
-            nextError instanceof Error
-              ? nextError
-              : new Error("Unable to load roadmap"),
-          );
+          setError(getUserFacingError(nextError));
         }
       } finally {
         if (!signal?.aborted) setIsLoading(false);
@@ -65,6 +66,18 @@ export function useRoadmap(userId: string, phaseId: string) {
       const idempotencyKey = crypto.randomUUID();
       setPendingAction(action);
       setError(null);
+      setOfflineMessage(null);
+      const previousRoadmap = roadmap;
+      const optimisticRoadmap = roadmap
+        ? {
+            ...roadmap,
+            now: roadmap.now.filter((card) => card.concern_id !== concernId),
+          }
+        : null;
+      if (optimisticRoadmap) {
+        optimisticRoadmap.current = optimisticRoadmap.now[0] ?? null;
+        setRoadmap(optimisticRoadmap);
+      }
       try {
         const nextRoadmap = await apiClient.action(userId, phaseId, {
           concern_id: concernId,
@@ -75,24 +88,42 @@ export function useRoadmap(userId: string, phaseId: string) {
         setIsCached(false);
         setRoadmap(nextRoadmap);
       } catch (nextError) {
-        browserRoadmapOfflineStore()?.enqueue({
-          userId,
-          phaseId,
-          concernId,
-          action,
-          idempotencyKey,
-        });
-        setError(
-          nextError instanceof Error
-            ? nextError
-            : new Error("Unable to update roadmap"),
-        );
+        if (shouldQueueRoadmapAction(nextError)) {
+          browserRoadmapOfflineStore()?.enqueue({
+            userId,
+            phaseId,
+            concernId,
+            action,
+            idempotencyKey,
+          });
+          if (optimisticRoadmap)
+            browserRoadmapOfflineStore()?.write(
+              userId,
+              phaseId,
+              optimisticRoadmap,
+            );
+          setOfflineMessage(
+            "Saved on this device. We will sync the change when the connection returns.",
+          );
+        } else {
+          setRoadmap(previousRoadmap);
+          setError(getUserFacingError(nextError));
+        }
       } finally {
         setPendingAction(null);
       }
     },
-    [phaseId, userId],
+    [phaseId, roadmap, userId],
   );
 
-  return { act, error, isCached, isLoading, load, pendingAction, roadmap };
+  return {
+    act,
+    error,
+    isCached,
+    isLoading,
+    load,
+    offlineMessage,
+    pendingAction,
+    roadmap,
+  };
 }

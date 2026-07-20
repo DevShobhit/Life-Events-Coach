@@ -7,10 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiClient } from "@/lib/api/client";
 import { useSessionStore } from "@/lib/state/session";
+import { getUserFacingError } from "@/lib/ux/feedback";
 
 export default function OnboardingPage() {
   const [stage, setStage] = useState("");
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const userId = useSessionStore((state) => state.developmentUserId);
   const phaseId = useSessionStore((state) => state.activePhase);
@@ -24,11 +25,7 @@ export default function OnboardingPage() {
       await apiClient.saveEnrollment(userId, phaseId, { stage: stage.trim() });
       router.push("/now");
     } catch (nextError) {
-      setError(
-        nextError instanceof Error
-          ? nextError
-          : new Error("Unable to save your context"),
-      );
+      setError(getUserFacingError(nextError));
     } finally {
       setIsSaving(false);
     }
@@ -47,27 +44,37 @@ export default function OnboardingPage() {
           A little context helps Steady Path keep the next step practical.
         </p>
       </div>
-      <div className="space-y-3">
+      <form
+        className="space-y-3"
+        id="onboarding-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void continueToNow();
+        }}
+      >
         <Label htmlFor="stage">What best describes your current stage?</Label>
         <Input
+          autoComplete="off"
           id="stage"
+          name="stage"
           onChange={(event) => setStage(event.target.value)}
-          placeholder="For example: preparing to move"
+          placeholder="For example: preparing to move…"
           value={stage}
         />
         <p className="text-sm text-muted-foreground">
           Your context is saved to the active development enrollment.
         </p>
-      </div>
+      </form>
       {error ? (
         <p className="text-sm text-destructive" role="alert">
-          {error.message}
+          {error}
         </p>
       ) : null}
       <Button
         className="min-h-11 w-fit"
         disabled={!stage.trim() || isSaving}
-        onClick={() => void continueToNow()}
+        form="onboarding-form"
+        type="submit"
       >
         {isSaving ? "Saving…" : "Continue to Now"}
       </Button>

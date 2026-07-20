@@ -40,7 +40,7 @@ export default function HorizonPage() {
       </div>
       {error ? (
         <p className="text-sm text-destructive" role="alert">
-          {error.message}
+          {error}
         </p>
       ) : null}
       {roadmap?.horizon.length ? (
@@ -99,7 +99,10 @@ export default function HorizonPage() {
           </DialogHeader>
           <ul className="space-y-2 text-sm leading-6">
             {selectedCard?.bullets.map((bullet) => (
-              <li key={bullet}>• {bullet}</li>
+              <li className="flex gap-2" key={bullet}>
+                <span aria-hidden="true">•</span>
+                <span>{bullet}</span>
+              </li>
             ))}
           </ul>
           <DialogFooter>

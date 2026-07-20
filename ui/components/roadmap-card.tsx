@@ -126,7 +126,7 @@ export function RoadmapCardView({
             aria-label="More card actions"
             className="min-h-11 min-w-11"
             disabled={Boolean(pendingAction)}
-            onClick={onMore}
+            onClick={() => onMore?.()}
             size="icon"
             variant="outline"
           >

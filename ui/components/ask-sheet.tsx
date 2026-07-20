@@ -1,6 +1,7 @@
 "use client";
 
-import { type FormEvent, useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { apiClient } from "@/lib/api/client";
 import type { AskResponse } from "@/lib/api/types";
+import { getUserFacingError } from "@/lib/ux/feedback";
 
 export function AskSheet({
   phaseId,
@@ -21,20 +23,24 @@ export function AskSheet({
   phaseId: string;
   userId: string;
 }) {
-  const [open, setOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [response, setResponse] = useState<AskResponse | null>(null);
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFolding, setIsFolding] = useState(false);
 
-  useEffect(() => {
-    const syncQuery = () =>
-      setOpen(new URLSearchParams(window.location.search).get("ask") === "1");
-    syncQuery();
-    window.addEventListener("popstate", syncQuery);
-    return () => window.removeEventListener("popstate", syncQuery);
-  }, []);
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const open = searchParams.get("ask") === "1";
+
+  const setOpen = (nextOpen: boolean) => {
+    if (nextOpen) {
+      router.push(`${pathname}?ask=1`, { scroll: false });
+    } else {
+      router.replace(pathname, { scroll: false });
+    }
+  };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -44,11 +50,7 @@ export function AskSheet({
     try {
       setResponse(await apiClient.ask(userId, phaseId, question.trim()));
     } catch (nextError) {
-      setError(
-        nextError instanceof Error
-          ? nextError
-          : new Error("Unable to answer question"),
-      );
+      setError(getUserFacingError(nextError));
     } finally {
       setIsSubmitting(false);
     }
@@ -67,11 +69,7 @@ export function AskSheet({
       );
       setResponse({ ...response, roadmap_proposal: null });
     } catch (nextError) {
-      setError(
-        nextError instanceof Error
-          ? nextError
-          : new Error("Unable to update roadmap"),
-      );
+      setError(getUserFacingError(nextError));
     } finally {
       setIsFolding(false);
     }
@@ -88,10 +86,12 @@ export function AskSheet({
         </DialogHeader>
         <form className="space-y-3" onSubmit={submit}>
           <Input
+            autoComplete="off"
             aria-label="Your question"
             maxLength={500}
+            name="question"
             onChange={(event) => setQuestion(event.target.value)}
-            placeholder="What should I know next?"
+            placeholder="What should I know next?…"
             value={question}
           />
           <Button
@@ -104,7 +104,7 @@ export function AskSheet({
         </form>
         {error ? (
           <p className="text-sm text-destructive" role="alert">
-            {error.message}
+            {error}
           </p>
         ) : null}
         {response ? (

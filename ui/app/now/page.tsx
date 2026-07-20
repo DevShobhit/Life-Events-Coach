@@ -22,10 +22,19 @@ import { useSessionStore } from "@/lib/state/session";
 export default function NowPage() {
   const userId = useSessionStore((state) => state.developmentUserId);
   const phaseId = useSessionStore((state) => state.activePhase);
-  const { act, error, isCached, isLoading, load, pendingAction, roadmap } =
-    useRoadmap(userId, phaseId);
+  const {
+    act,
+    error,
+    isCached,
+    isLoading,
+    load,
+    offlineMessage,
+    pendingAction,
+    roadmap,
+  } = useRoadmap(userId, phaseId);
   const [skipCounts, setSkipCounts] = useState<Record<string, number>>({});
   const [relevanceCard, setRelevanceCard] = useState<string | null>(null);
+  const [moreCard, setMoreCard] = useState<string | null>(null);
 
   if (isLoading && !roadmap) return <RouteLoading />;
   if (error && !roadmap) return <RouteError onRetry={() => void load()} />;
@@ -64,8 +73,13 @@ export default function NowPage() {
       </div>
       {error ? (
         <p className="text-sm text-destructive" role="alert">
-          {error.message}
+          {error}
         </p>
+      ) : null}
+      {offlineMessage ? (
+        <output className="text-sm text-muted-foreground">
+          {offlineMessage}
+        </output>
       ) : null}
       {isCached ? (
         <output className="text-sm text-muted-foreground">
@@ -78,8 +92,11 @@ export default function NowPage() {
           <RoadmapCardView
             card={cardData}
             onAction={(action) => void submitAction(current.concern_id, action)}
+            onMore={() => setMoreCard(current.concern_id)}
             pendingAction={
-              pendingAction === "done" || pendingAction === "skip"
+              pendingAction === "done" ||
+              pendingAction === "skip" ||
+              pendingAction === "already_handled"
                 ? pendingAction
                 : undefined
             }
@@ -133,6 +150,30 @@ export default function NowPage() {
               }}
             >
               Not relevant
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog
+        open={Boolean(moreCard)}
+        onOpenChange={(open) => !open && setMoreCard(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Have you already handled this?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Marking it as handled removes it from your active roadmap.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (moreCard) void submitAction(moreCard, "already_handled");
+                setMoreCard(null);
+              }}
+            >
+              Already handled
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
