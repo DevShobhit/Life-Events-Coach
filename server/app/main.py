@@ -45,6 +45,7 @@ from app.modules.phases.catalog import (
     list_catalog,
 )
 from app.modules.phases.enrollment_repository import EnrollmentRepository
+from app.modules.phases.enrollment import validate_enrollment
 from app.modules.phases.freshness import FreshnessReport, freshness_report
 from app.modules.phases.grounding import GroundingTimeout
 from app.modules.phases.lifecycle import CardAction
@@ -253,14 +254,20 @@ async def save_enrollment(
 ) -> Enrollment:
     if authenticated_user != user_id:
         raise ForbiddenError("user scope mismatch")
-    await EnrollmentRepository(session).save(
-        Enrollment(
+    published = await get_persisted_module(session, phase_id)
+    if published is None:
+        raise NotFoundError("phase")
+    try:
+        enrollment_value = validate_enrollment(
+            published.module,
             user_id=user_id,
             phase_id=phase_id,
             context=request.context,
             progress_anchor=request.progress_anchor,
         )
-    )
+    except ValueError as error:
+        raise BadRequestError(str(error)) from error
+    await EnrollmentRepository(session).save(enrollment_value)
     saved = await EnrollmentRepository(session).get(user_id, phase_id)
     if saved is None:
         raise NotFoundError("enrollment")

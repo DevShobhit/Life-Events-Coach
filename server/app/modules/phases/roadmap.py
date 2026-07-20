@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.phases.action_repository import CardActionRepository
 from app.modules.phases.lifecycle import CardAction, CardState, apply_action
 from app.modules.phases.orm_models import CardProgressRecord
+from app.modules.phases.enrollment_repository import EnrollmentRepository
 from app.modules.phases.priority import RankedConcern, RankRequest, rank_concerns
 from app.modules.phases.schemas import PhaseModule
 
@@ -178,6 +179,13 @@ async def persistent_roadmap(
     stage: str,
     today: date,
 ) -> RoadmapResponse:
+    enrollment = await EnrollmentRepository(session).get(user_id, module.phase_id)
+    if enrollment is not None:
+        stage = next(
+            (value for key, value in enrollment.context.items() if "stage" in key),
+            stage,
+        )
+        today = enrollment.progress_anchor
     state = await load_persistent_state(
         session, user_id=user_id, phase_id=module.phase_id
     )
@@ -213,6 +221,13 @@ async def apply_persistent_action(
         skip_threshold=2,
         idempotency_key=idempotency_key,
     )
+    enrollment = await EnrollmentRepository(session).get(user_id, module.phase_id)
+    if enrollment is not None:
+        stage = next(
+            (value for key, value in enrollment.context.items() if "stage" in key),
+            stage,
+        )
+        today = enrollment.progress_anchor
     return await persistent_roadmap(
         session,
         module,

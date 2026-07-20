@@ -25,6 +25,7 @@ class EnrollmentRepository:
                 )
             else:
                 record.context = enrollment.context
+                record.progress_anchor = enrollment.progress_anchor
 
     async def get(self, user_id: str, phase_id: str) -> Enrollment | None:
         record = await self._session.get(PhaseEnrollment, (user_id, phase_id))
