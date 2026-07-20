@@ -36,7 +36,9 @@ class PhaseModuleCache:
         self._modules.pop(phase_id, None)
 
 
-def validate_launch_content(module: PhaseModule, *, production: bool = False) -> dict[str, list[str]]:
+def validate_launch_content(
+    module: PhaseModule, *, production: bool = False
+) -> dict[str, list[str]]:
     """Validate release-only content requirements without changing test fixtures.
 
     The synthetic fixture remains usable by local tests.  Callers promoting
@@ -50,10 +52,24 @@ def validate_launch_content(module: PhaseModule, *, production: bool = False) ->
         errors.setdefault("concerns", []).append(
             "production modules require at least 40 reviewed concerns"
         )
-    blocked_hosts = {"localhost", "test", "test.local", "example.com", "example.org", "example.net", "example.gov"}
+    blocked_hosts = {
+        "localhost",
+        "test",
+        "test.local",
+        "example.com",
+        "example.org",
+        "example.net",
+        "example.gov",
+    }
     for concern in module.concerns:
         host = (urlparse(str(concern.citation.url)).hostname or "").lower()
-        if host in blocked_hosts or host.endswith(".example.com") or host.endswith(".example.org") or host.endswith(".example.net") or host.endswith(".example.gov"):
+        if (
+            host in blocked_hosts
+            or host.endswith(".example.com")
+            or host.endswith(".example.org")
+            or host.endswith(".example.net")
+            or host.endswith(".example.gov")
+        ):
             errors.setdefault("citation.url", []).append(
                 f"citation {concern.citation.id} uses a test/example domain"
             )
