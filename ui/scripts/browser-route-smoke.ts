@@ -2,7 +2,11 @@ export {};
 
 type BrowserModule = {
   chromium: {
-    launch(options?: { headless?: boolean; executablePath?: string }): Promise<Browser>;
+    launch(options?: {
+      headless?: boolean;
+      executablePath?: string;
+      args?: string[];
+    }): Promise<Browser>;
   };
 };
 
@@ -52,6 +56,7 @@ const { chromium } = await loadBrowser();
 const browser = await chromium.launch({
   headless: true,
   executablePath: process.env.SMOKE_BROWSER_EXECUTABLE,
+  args: ["--no-sandbox", "--disable-gpu"],
 });
 let failed = false;
 
@@ -76,7 +81,7 @@ try {
     let navigationStatus: number | null = null;
     try {
       const response = await page.goto(`${baseUrl}${route}`, {
-        waitUntil: "networkidle",
+        waitUntil: "domcontentloaded",
         timeout: timeoutMs,
       });
       navigationStatus = response?.status() ?? null;
