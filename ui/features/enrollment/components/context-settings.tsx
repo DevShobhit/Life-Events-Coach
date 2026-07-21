@@ -74,9 +74,22 @@ export function ContextSettings({
   }
   if (enrollment.error || phases.error) {
     return (
-      <p className="text-sm text-destructive" role="alert">
-        We could not load your context. Please refresh and retry.
-      </p>
+      <div className="space-y-3" role="alert">
+        <p className="text-sm text-destructive">
+          We could not load your context. Please retry.
+        </p>
+        <Button
+          className="min-h-11"
+          onClick={() => {
+            void enrollment.refetch();
+            void phases.refetch();
+          }}
+          type="button"
+          variant="outline"
+        >
+          Retry loading context
+        </Button>
+      </div>
     );
   }
 
