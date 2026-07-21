@@ -5,6 +5,7 @@ import type {
   AskResponse,
   CardAction,
   Enrollment,
+  NotificationPreference,
   PublishedPhaseModule,
   RoadmapResponse,
 } from "./types";
@@ -115,6 +116,23 @@ export class LifeCurriculumClient {
     return this.request<Enrollment>(
       `/enrollment/${encodeURIComponent(userId)}/${encodeURIComponent(phaseId)}`,
       { userId, signal },
+    );
+  }
+
+  notificationPreferences(userId: string, signal?: AbortSignal) {
+    return this.request<NotificationPreference>(
+      `/notifications/preferences/${encodeURIComponent(userId)}`,
+      { userId, signal },
+    );
+  }
+
+  saveNotificationPreferences(
+    userId: string,
+    preference: { enabled: boolean; timezone: string; local_time: string },
+  ) {
+    return this.request<NotificationPreference>(
+      `/notifications/preferences/${encodeURIComponent(userId)}`,
+      { userId, method: "PUT", body: preference },
     );
   }
 

@@ -32,6 +32,40 @@ describe("LifeCurriculumClient", () => {
     ]);
   });
 
+  test("reads and saves notification preferences through the user scope", async () => {
+    const requests: Request[] = [];
+    const client = new LifeCurriculumClient({
+      baseUrl: "https://api.example.test",
+      fetcher: async (input, init) => {
+        requests.push(new Request(input, init));
+        return Response.json({
+          user_id: "dev-user",
+          enabled: true,
+          timezone: "UTC",
+          local_time: "09:00:00",
+          delivery_status: "not_configured",
+          last_delivery_at: null,
+        });
+      },
+    });
+
+    await client.notificationPreferences("dev-user");
+    await client.saveNotificationPreferences("dev-user", {
+      enabled: true,
+      timezone: "UTC",
+      local_time: "09:00:00",
+    });
+
+    expect(requests[0]?.url).toContain("/notifications/preferences/dev-user");
+    expect(requests[0]?.headers.get("X-User-ID")).toBe("dev-user");
+    expect(requests[1]?.method).toBe("PUT");
+    expect(await requests[1]?.json()).toEqual({
+      enabled: true,
+      timezone: "UTC",
+      local_time: "09:00:00",
+    });
+  });
+
   test("sends scoped roadmap requests with a request id", async () => {
     const requests: Request[] = [];
     const client = new LifeCurriculumClient({

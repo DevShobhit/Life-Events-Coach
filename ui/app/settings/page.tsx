@@ -1,6 +1,7 @@
 "use client";
 
 import { ContextSettings } from "@/features/enrollment/components/context-settings";
+import { NotificationSettings } from "@/features/notifications/components/notification-settings";
 import { useSessionStore } from "@/lib/state/session";
 
 export default function SettingsPage() {
@@ -41,6 +42,20 @@ export default function SettingsPage() {
       </section>
       <section
         className="space-y-4 rounded-lg border border-border bg-card p-5"
+        aria-labelledby="notification-heading"
+      >
+        <div>
+          <h2 className="font-medium" id="notification-heading">
+            Daily reminders
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Choose whether reminders are enabled and when they should arrive.
+          </p>
+        </div>
+        <NotificationSettings userId={developmentUserId} />
+      </section>
+      <section
+        className="space-y-4 rounded-lg border border-border bg-card p-5"
         aria-labelledby="motion-heading"
       >
         <div>
@@ -76,10 +91,6 @@ export default function SettingsPage() {
           This is request scoping for local development, not authentication.
         </p>
       </section>
-      <p className="text-sm text-muted-foreground">
-        Notification preferences will appear after the preferences API is
-        available.
-      </p>
     </main>
   );
 }

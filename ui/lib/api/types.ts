@@ -122,3 +122,12 @@ export type Enrollment = {
   context: Record<string, string>;
   progress_anchor: string;
 };
+
+export type NotificationPreference = {
+  user_id: string;
+  enabled: boolean;
+  timezone: string;
+  local_time: string;
+  delivery_status: "not_configured" | "scheduled" | "sent" | "failed";
+  last_delivery_at: string | null;
+};
