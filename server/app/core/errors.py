@@ -28,6 +28,11 @@ class ForbiddenError(AppError):
         super().__init__(403, "forbidden", message)
 
 
+class AuthenticationRequiredError(AppError):
+    def __init__(self) -> None:
+        super().__init__(401, "authentication_required", "authentication required")
+
+
 class NotFoundError(AppError):
     def __init__(self, resource: str) -> None:
         super().__init__(404, "not_found", f"{resource} not found")
