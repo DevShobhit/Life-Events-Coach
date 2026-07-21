@@ -17,6 +17,7 @@ type Browser = {
 
 type Page = {
   on(event: string, handler: (value: any) => void): void;
+  setViewportSize(size: { width: number; height: number }): Promise<void>;
   goto(url: string, options?: { waitUntil?: string; timeout?: number }): Promise<any>;
   waitForTimeout(timeout: number): Promise<void>;
   evaluate<T>(fn: () => T): Promise<T>;
@@ -27,6 +28,7 @@ const baseUrl = (process.env.SMOKE_BASE_URL ?? "http://localhost:3000").replace(
 const apiUrl = (process.env.SMOKE_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
 const timeoutMs = Number(process.env.SMOKE_TIMEOUT_MS ?? "30000");
 const routes = ["/now", "/horizon"];
+const viewports = [320, 768, 1024, 1440];
 
 function safeUrl(value: string) {
   try {
@@ -62,55 +64,65 @@ let failed = false;
 
 try {
   for (const route of routes) {
-    const page = await browser.newPage();
-    const consoleErrors: string[] = [];
-    const failedRequests: Array<{ url: string; status: number | null }> = [];
-    const roadmapRequests: Array<{ url: string; status: number | null }> = [];
-    page.on("console", (message) => {
-      if (message.type() === "error") consoleErrors.push(String(message.text()));
-    });
-    page.on("requestfailed", (request) => {
-      failedRequests.push({ url: safeUrl(request.url()), status: null });
-    });
-    page.on("response", (response) => {
-      if (response.url().includes("/roadmap/")) {
-        roadmapRequests.push({ url: safeUrl(response.url()), status: response.status() });
-      }
-    });
-
-    let navigationStatus: number | null = null;
-    try {
-      const response = await page.goto(`${baseUrl}${route}`, {
-        waitUntil: "domcontentloaded",
-        timeout: timeoutMs,
+    for (const width of viewports) {
+      const page = await browser.newPage();
+      await page.setViewportSize({ width, height: 900 });
+      const consoleErrors: string[] = [];
+      const failedRequests: Array<{ url: string; status: number | null }> = [];
+      const roadmapRequests: Array<{ url: string; status: number | null }> = [];
+      page.on("console", (message) => {
+        if (message.type() === "error") consoleErrors.push(String(message.text()));
       });
-      navigationStatus = response?.status() ?? null;
-      await page.waitForTimeout(500);
-    } catch (error) {
-      consoleErrors.push(error instanceof Error ? error.name : "navigation_failed");
-    }
+      page.on("requestfailed", (request) => {
+        failedRequests.push({ url: safeUrl(request.url()), status: null });
+      });
+      page.on("response", (response) => {
+        if (response.url().includes("/roadmap/")) {
+          roadmapRequests.push({ url: safeUrl(response.url()), status: response.status() });
+        }
+      });
 
-    const serviceWorker = await page.evaluate(() => {
-      const registration = navigator.serviceWorker?.controller;
-      return { controlled: Boolean(registration), scriptUrl: registration?.scriptURL ?? null };
-    });
-    const successText = await page.evaluate(() => document.body?.innerText ?? "");
-    const hasControlledState = /Your next steady step|See what is ahead|could not load|Try again|setup/i.test(
-      successText,
-    );
-    const ok = navigationStatus !== null && navigationStatus < 400 && roadmapRequests.length > 0 && hasControlledState;
-    console.log(JSON.stringify({
-      kind: "browser_route_smoke",
-      route,
-      navigationStatus,
-      roadmapRequests,
-      serviceWorker,
-      consoleErrors,
-      failedRequests,
-      ok,
-    }));
-    if (!ok || consoleErrors.length > 0 || failedRequests.length > 0) failed = true;
-    await page.close();
+      let navigationStatus: number | null = null;
+      try {
+        const response = await page.goto(`${baseUrl}${route}`, {
+          waitUntil: "domcontentloaded",
+          timeout: timeoutMs,
+        });
+        navigationStatus = response?.status() ?? null;
+        await page.waitForTimeout(500);
+      } catch (error) {
+        consoleErrors.push(error instanceof Error ? error.name : "navigation_failed");
+      }
+
+      const serviceWorker = await page.evaluate(() => {
+        const registration = navigator.serviceWorker?.controller;
+        return { controlled: Boolean(registration), scriptUrl: registration?.scriptURL ?? null };
+      });
+      const layout = await page.evaluate(() => ({
+        hasMain: Boolean(document.querySelector("main")),
+        scrollWidth: document.documentElement.scrollWidth,
+        viewportWidth: window.innerWidth,
+      }));
+      const successText = await page.evaluate(() => document.body?.innerText ?? "");
+      const hasControlledState = /Your next steady step|See what is ahead|could not load|Try again|setup/i.test(
+        successText,
+      );
+      const ok = navigationStatus !== null && navigationStatus < 400 && roadmapRequests.length > 0 && hasControlledState && layout.scrollWidth <= layout.viewportWidth;
+      console.log(JSON.stringify({
+        kind: "browser_route_smoke",
+        route,
+        viewportWidth: width,
+        navigationStatus,
+        roadmapRequests,
+        serviceWorker,
+        layout,
+        consoleErrors,
+        failedRequests,
+        ok,
+      }));
+      if (!ok || consoleErrors.length > 0 || failedRequests.length > 0) failed = true;
+      await page.close();
+    }
   }
 } finally {
   await browser.close();
