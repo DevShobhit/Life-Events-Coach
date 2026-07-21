@@ -7,6 +7,7 @@ import type {
   Enrollment,
   EnrollmentLifecycleEvent,
   NotificationPreference,
+  AccountDataExport,
   PublishedPhaseModule,
   RoadmapResponse,
 } from "./types";
@@ -155,6 +156,20 @@ export class LifeCurriculumClient {
     return this.request<NotificationPreference>(
       `/notifications/preferences/${encodeURIComponent(userId)}`,
       { userId, method: "PUT", body: preference },
+    );
+  }
+
+  exportAccount(userId: string, signal?: AbortSignal) {
+    return this.request<AccountDataExport>(
+      `/account/${encodeURIComponent(userId)}/export`,
+      { userId, signal },
+    );
+  }
+
+  deleteAccount(userId: string) {
+    return this.request<{ deleted: boolean }>(
+      `/account/${encodeURIComponent(userId)}/data`,
+      { userId, method: "DELETE", body: { confirm: true } },
     );
   }
 

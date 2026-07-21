@@ -3,6 +3,7 @@
 import { ContextSettings } from "@/features/enrollment/components/context-settings";
 import { PhaseLifecycleSettings } from "@/features/enrollment/components/phase-lifecycle-settings";
 import { NotificationSettings } from "@/features/notifications/components/notification-settings";
+import { AccountDataSettings } from "@/features/account/components/account-data-settings";
 import { useSessionStore } from "@/lib/state/session";
 
 export default function SettingsPage() {
@@ -27,6 +28,16 @@ export default function SettingsPage() {
           Only preferences supported by the current client are shown here.
         </p>
       </div>
+      <section
+        className="space-y-4 rounded-lg border border-border bg-card p-5"
+        aria-labelledby="account-data-heading"
+      >
+        <div>
+          <h2 className="font-medium" id="account-data-heading">Your data</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Export a copy or permanently delete your saved curriculum data.</p>
+        </div>
+        <AccountDataSettings userId={developmentUserId} />
+      </section>
       <section
         aria-labelledby="context-heading"
         className="space-y-4 rounded-lg border border-border bg-card p-5"

@@ -139,3 +139,13 @@ export type NotificationPreference = {
   delivery_status: "not_configured" | "scheduled" | "sent" | "failed";
   last_delivery_at: string | null;
 };
+
+export type AccountDataExport = {
+  schema_version: string;
+  generated_at: string;
+  enrollments: Record<string, unknown>[];
+  card_progress: Record<string, unknown>[];
+  card_actions: Record<string, unknown>[];
+  notification_preferences: Record<string, unknown>[];
+  lifecycle_events: Record<string, unknown>[];
+};
