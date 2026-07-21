@@ -26,4 +26,10 @@ describe("service worker registration lifecycle", () => {
       expect(source).toContain(event);
     }
   });
+
+  test("reports explicit reset failures without an unhandled rejection", () => {
+    expect(source).toContain("service_worker.reset.failed");
+    expect(source).toContain("resetApplicationServiceWorker()");
+    expect(source).toContain(".then(() =>");
+  });
 });

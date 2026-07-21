@@ -23,9 +23,15 @@ export function OfflineSync() {
       process.env.NODE_ENV === "development" &&
       isServiceWorkerResetRequested(window.location.search)
     ) {
-      void resetApplicationServiceWorker().then(() => {
-        logDevelopment("service_worker.reset.completed");
-      });
+      void resetApplicationServiceWorker()
+        .then(() => {
+          logDevelopment("service_worker.reset.completed");
+        })
+        .catch((error: unknown) => {
+          logDevelopment("service_worker.reset.failed", {
+            errorType: error instanceof Error ? error.name : "unknown",
+          });
+        });
     }
     if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
       logDevelopment("service_worker.registration.started");
