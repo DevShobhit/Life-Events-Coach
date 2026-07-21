@@ -517,6 +517,58 @@ async def editorial_activate_version(
     return {"phase_id": phase_id, "version": version, "status": "published"}
 
 
+@app.post(
+    "/editorial/phases/{phase_id}/versions/{version}/rollback",
+    dependencies=[Depends(enforce_protected_rate_limit)],
+)
+async def editorial_rollback_version(
+    phase_id: str,
+    version: int,
+    payload: EditorialVersionTransitionRequest,
+    editorial: object = Depends(editorial_admin),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, object]:
+    target = await session.get(
+        PhaseModuleVersion, {"phase_id": phase_id, "version": version}
+    )
+    if target is None:
+        raise NotFoundError("phase version")
+    current_active = await active_version(session, phase_id)
+    if current_active == version:
+        raise ConflictError("phase version is already active")
+    if payload.expected_active_version is not None and payload.expected_active_version != (current_active or 0):
+        raise ConflictError("active phase version is stale")
+    previous = (
+        await session.get(PhaseModuleVersion, {"phase_id": phase_id, "version": current_active})
+        if current_active is not None
+        else None
+    )
+    active = await session.get(PhaseModuleActive, phase_id)
+    if active is None:
+        session.add(PhaseModuleActive(phase_id=phase_id, version=version))
+    else:
+        active.version = version
+    if previous is not None:
+        previous.status = "deprecated"
+    target.status = "published"
+    await record_audit(
+        session,
+        phase_id=phase_id,
+        version=version,
+        actor_id=editorial.subject.subject_id,
+        actor_role=editorial.role,
+        event="version.rollback",
+    )
+    await session.commit()
+    active_phase_module_cache.invalidate(phase_id)
+    return {
+        "phase_id": phase_id,
+        "version": version,
+        "previous_version": current_active,
+        "status": "published",
+    }
+
+
 @app.get("/account/{user_id}/export", response_model=AccountDataExport, dependencies=[Depends(enforce_protected_rate_limit)])
 async def export_account(
     user_id: str,

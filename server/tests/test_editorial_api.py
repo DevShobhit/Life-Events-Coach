@@ -194,12 +194,19 @@ def test_version_lifecycle_requires_roles_and_preserves_active_pointer() -> None
                 headers=admin,
                 json={},
             )
+            rolled_back = client.post(
+                "/editorial/phases/relocation/versions/2/rollback",
+                headers=admin,
+                json={"expected_active_version": 1},
+            )
             catalog = client.get("/phases/relocation")
         assert denied.status_code == 403
         assert deprecated.status_code == 200
         assert activated_by_publisher.status_code == 403
         assert activated.status_code == 200
-        assert catalog.json()["version"] == 1
+        assert rolled_back.status_code == 200
+        assert rolled_back.json()["previous_version"] == 1
+        assert catalog.json()["version"] == 2
     finally:
         app.dependency_overrides.clear()
         app.dependency_overrides.update(previous)
