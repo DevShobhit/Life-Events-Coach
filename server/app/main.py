@@ -42,7 +42,7 @@ from app.core.errors import (
     validation_error_handler,
 )
 from app.core.logging import configure_logging
-from app.core.rate_limit import SlidingWindowRateLimiter, route_family
+from app.core.rate_limit import configured_rate_limiter, route_family
 from app.core.settings import get_settings
 from app.core.telemetry import configure_tracing, instrument_fastapi
 from app.modules.account.data_lifecycle import (
@@ -170,10 +170,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 
 settings = get_settings()
-protected_rate_limiter = SlidingWindowRateLimiter(
-    max_requests=settings.protected_rate_limit_requests,
-    window_seconds=settings.protected_rate_limit_window_seconds,
-)
+protected_rate_limiter = configured_rate_limiter(settings)
 _readiness_lock = asyncio.Lock()
 _readiness_cache: dict[type, float] = {}
 _local_grounding = InProcessGroundingProvider()
