@@ -38,6 +38,11 @@ class RateLimitExceededError(AppError):
         super().__init__(429, "rate_limited", "too many requests; please retry later")
 
 
+class ConflictError(AppError):
+    def __init__(self, message: str) -> None:
+        super().__init__(409, "conflict", message)
+
+
 class NotFoundError(AppError):
     def __init__(self, resource: str) -> None:
         super().__init__(404, "not_found", f"{resource} not found")

@@ -1,6 +1,6 @@
-from datetime import date
+from datetime import date, datetime
 from enum import StrEnum
-from typing import Self
+from typing import Literal, Self
 
 from pydantic import AnyHttpUrl, BaseModel, Field, field_validator, model_validator
 
@@ -56,6 +56,14 @@ class Enrollment(BaseModel):
     phase_id: str = Field(min_length=1, max_length=100)
     context: dict[str, str] = Field(default_factory=dict)
     progress_anchor: date = Field(default_factory=date.today)
+    status: Literal["active", "completed", "archived"] = "active"
+    completed_at: datetime | None = None
+    archived_at: datetime | None = None
+
+
+class EnrollmentLifecycleEvent(BaseModel):
+    event: Literal["completed", "archived"]
+    occurred_at: datetime
 
 
 class CardProgress(BaseModel):

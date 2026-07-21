@@ -28,6 +28,7 @@ from app.core.database import get_session
 from app.core.errors import (
     AppError,
     BadRequestError,
+    ConflictError,
     GatewayTimeoutError,
     NotFoundError,
     RateLimitExceededError,
@@ -65,7 +66,7 @@ from app.modules.phases.roadmap import (
     apply_persistent_action,
     persistent_roadmap,
 )
-from app.modules.phases.schemas import Enrollment
+from app.modules.phases.schemas import Enrollment, EnrollmentLifecycleEvent
 
 logger = structlog.get_logger()
 http_requests = Counter(
@@ -289,6 +290,21 @@ async def save_notification_preferences(
 
 
 @app.get(
+    "/enrollment/{user_id}/history",
+    response_model=list[EnrollmentLifecycleEvent],
+    tags=["enrollment"],
+)
+async def enrollment_history(
+    user_id: str,
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    subject: AuthenticatedSubject = Depends(authenticated_subject),  # noqa: B008
+    _rate_limit: None = Depends(enforce_protected_rate_limit),  # noqa: B008
+) -> list[EnrollmentLifecycleEvent]:
+    authorized_user_id = authorize_subject_scope(subject, user_id)
+    return await EnrollmentRepository(session).history(authorized_user_id)
+
+
+@app.get(
     "/enrollment/{user_id}/{phase_id}",
     response_model=Enrollment,
     tags=["enrollment"],
@@ -341,6 +357,52 @@ async def save_enrollment(
     if saved is None:
         raise NotFoundError("enrollment")
     return saved
+
+
+async def _transition_enrollment(
+    user_id: str,
+    phase_id: str,
+    event: str,
+    session: AsyncSession,
+    subject: AuthenticatedSubject,
+) -> Enrollment:
+    authorized_user_id = authorize_subject_scope(subject, user_id)
+    try:
+        return await EnrollmentRepository(session).transition(
+            authorized_user_id, phase_id, event
+        )
+    except ValueError as error:
+        raise ConflictError(str(error)) from error
+
+
+@app.post(
+    "/enrollment/{user_id}/{phase_id}/complete",
+    response_model=Enrollment,
+    tags=["enrollment"],
+)
+async def complete_enrollment(
+    user_id: str,
+    phase_id: str,
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    subject: AuthenticatedSubject = Depends(authenticated_subject),  # noqa: B008
+    _rate_limit: None = Depends(enforce_protected_rate_limit),  # noqa: B008
+) -> Enrollment:
+    return await _transition_enrollment(user_id, phase_id, "completed", session, subject)
+
+
+@app.post(
+    "/enrollment/{user_id}/{phase_id}/archive",
+    response_model=Enrollment,
+    tags=["enrollment"],
+)
+async def archive_enrollment(
+    user_id: str,
+    phase_id: str,
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    subject: AuthenticatedSubject = Depends(authenticated_subject),  # noqa: B008
+    _rate_limit: None = Depends(enforce_protected_rate_limit),  # noqa: B008
+) -> Enrollment:
+    return await _transition_enrollment(user_id, phase_id, "archived", session, subject)
 
 
 class AskRequest(BaseModel):

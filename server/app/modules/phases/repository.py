@@ -12,6 +12,7 @@ from app.modules.phases.schemas import PhaseModule
 async def session_transaction(session: AsyncSession) -> AsyncIterator[None]:
     if session.in_transaction():
         yield
+        await session.commit()
     else:
         async with session.begin():
             yield
