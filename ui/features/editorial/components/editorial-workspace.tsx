@@ -37,6 +37,7 @@ export function EditorialWorkspace() {
   const [previewText, setPreviewText] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [conflict, setConflict] = useState(false);
 
   const selectedPhase = useMemo(
     () => phases.find((phase) => phase.module.phase_id === phaseId),
@@ -75,6 +76,7 @@ export function EditorialWorkspace() {
     setDraft(next);
     setEditorText(JSON.stringify(next.module, null, 2));
     setPreviewText(null);
+    setConflict(false);
     setMessage(null);
   }
 
@@ -153,9 +155,26 @@ export function EditorialWorkspace() {
         error instanceof SyntaxError
           ? "Draft JSON is invalid."
           : error instanceof ApiError && error.code === "conflict"
-            ? "This draft changed elsewhere. Reload it before saving again."
+            ? (setConflict(true), "This draft changed elsewhere. Reload it before saving again.")
           : "Draft could not be saved.",
       );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function reloadDraft() {
+    if (!draft) return;
+    setBusy(true);
+    try {
+      const next = await apiClient.editorialDraft(phaseId, draft.draft_id, role);
+      selectDraft(next);
+      setDrafts((current) =>
+        current.map((item) => (item.draft_id === next.draft_id ? next : item)),
+      );
+      setMessage("Latest draft revision loaded. Review it before saving.");
+    } catch {
+      setMessage("The latest draft could not be loaded. Please retry.");
     } finally {
       setBusy(false);
     }
@@ -318,6 +337,16 @@ export function EditorialWorkspace() {
                   >
                     Save
                   </Button>
+                  {conflict ? (
+                    <Button
+                      disabled={busy}
+                      onClick={() => void reloadDraft()}
+                      type="button"
+                      variant="outline"
+                    >
+                      Reload draft
+                    </Button>
+                  ) : null}
                   <Button
                     disabled={busy}
                     onClick={() => void validateDraft()}
