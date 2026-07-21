@@ -23,7 +23,7 @@ def intent(key: str = "daily:u:2026-07-21") -> NotificationIntent:
     return NotificationIntent("u", date(2026, 7, 21), ("p1",), key)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_enqueue_is_idempotent_and_claims_pending(session):
     repository = NotificationIntentRepository(session)
     first = await repository.enqueue(intent())
@@ -36,7 +36,7 @@ async def test_enqueue_is_idempotent_and_claims_pending(session):
     assert await repository.claim_pending() == []
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_intent_delivery_statuses(session):
     repository = NotificationIntentRepository(session)
     await repository.enqueue(intent())
@@ -48,7 +48,7 @@ async def test_intent_delivery_statuses(session):
     assert record.delivered_at is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_claim_limit_must_be_positive(session):
     with pytest.raises(ValueError):
         await NotificationIntentRepository(session).claim_pending(limit=0)

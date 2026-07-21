@@ -5,6 +5,7 @@ legal, immigration, or relocation advice and must be replaced by editorially
 reviewed launch content before production publication.
 """
 
+from app.modules.phases.production_concern_bank import PRODUCTION_RELOCATION
 from app.modules.phases.schemas import OnboardingField, PhaseModule
 
 LAUNCH_RELOCATION_VERSION = 1
@@ -108,6 +109,9 @@ LAUNCH_RELOCATION = PhaseModule.model_validate(
         ],
     }
 )
+
+# Production candidate. Keep the small launch fixture above for contract tests.
+PRODUCTION_LAUNCH_RELOCATION = PRODUCTION_RELOCATION
 
 
 SECOND_PHASE = LAUNCH_RELOCATION.model_copy(

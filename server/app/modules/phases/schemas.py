@@ -36,6 +36,11 @@ class Concern(BaseModel):
     bullets: list[str] = Field(min_length=1, max_length=5)
     why_now: str = Field(min_length=1, max_length=300)
     citation: Citation
+    jurisdiction_scope: str = Field(
+        default="destination jurisdiction; verify locally",
+        min_length=1,
+        max_length=200,
+    )
     card: CardContent
 
 
