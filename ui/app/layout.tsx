@@ -16,6 +16,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full antialiased">
+      <head>
+        <meta name="apple-mobile-web-app-title" content="Live Coach" />
+      </head>
       <body className="min-h-full flex flex-col">
         <Providers>
           <AppShell>{children}</AppShell>
