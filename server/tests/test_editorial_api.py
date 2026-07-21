@@ -164,3 +164,42 @@ def test_repeating_editorial_publish_idempotency_key_replays_original_version() 
     finally:
         app.dependency_overrides.clear()
         app.dependency_overrides.update(previous)
+
+
+def test_version_lifecycle_requires_roles_and_preserves_active_pointer() -> None:
+    previous = dict(app.dependency_overrides)
+    app.dependency_overrides[get_session] = override_session
+    try:
+        with TestClient(app) as client:
+            editor = {"X-User-ID": "editor-1", "X-User-Role": "editor"}
+            denied = client.post(
+                "/editorial/phases/relocation/versions/1/deprecate",
+                headers=editor,
+                json={},
+            )
+            publisher = {"X-User-ID": "publisher-1", "X-User-Role": "publisher"}
+            deprecated = client.post(
+                "/editorial/phases/relocation/versions/1/deprecate",
+                headers=publisher,
+                json={},
+            )
+            activated_by_publisher = client.post(
+                "/editorial/phases/relocation/versions/1/activate",
+                headers=publisher,
+                json={},
+            )
+            admin = {"X-User-ID": "admin-1", "X-User-Role": "admin"}
+            activated = client.post(
+                "/editorial/phases/relocation/versions/1/activate",
+                headers=admin,
+                json={},
+            )
+            catalog = client.get("/phases/relocation")
+        assert denied.status_code == 403
+        assert deprecated.status_code == 200
+        assert activated_by_publisher.status_code == 403
+        assert activated.status_code == 200
+        assert catalog.json()["version"] == 1
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(previous)

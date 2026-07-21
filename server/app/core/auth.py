@@ -58,6 +58,14 @@ async def editorial_publisher(
     return editorial
 
 
+async def editorial_admin(
+    editorial: EditorialSubject = Depends(editorial_subject),
+) -> EditorialSubject:
+    if editorial.role != "admin":
+        raise ForbiddenError("admin role required")
+    return editorial
+
+
 def authorize_subject_scope(
     subject: AuthenticatedSubject, resource_subject_id: str
 ) -> str:

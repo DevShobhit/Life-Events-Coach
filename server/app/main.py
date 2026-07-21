@@ -23,6 +23,7 @@ from app.core.auth import (
     AuthenticatedSubject,
     authenticated_subject,
     authorize_subject_scope,
+    editorial_admin,
     editorial_publisher,
     editorial_subject,
 )
@@ -59,6 +60,7 @@ from app.modules.phases.ask_api import (
     RoadmapFoldRequest,
     answer_question,
 )
+from app.modules.phases.cache import active_phase_module_cache
 from app.modules.phases.catalog import (
     PublishedPhaseModule,
     get_persisted_module,
@@ -80,6 +82,7 @@ from app.modules.phases.enrollment_repository import EnrollmentRepository
 from app.modules.phases.freshness import FreshnessReport, freshness_report
 from app.modules.phases.grounding import GroundingTimeout
 from app.modules.phases.lifecycle import CardAction
+from app.modules.phases.orm_models import PhaseModuleActive, PhaseModuleVersion
 from app.modules.phases.publication import (
     PhaseModuleCache,
     PhaseModulePublisher,
@@ -216,6 +219,10 @@ class EditorialDraftUpdateRequest(EditorialDraftRequest):
 class EditorialDraftPublishRequest(BaseModel):
     expected_active_version: int | None = Field(default=None, ge=0)
     idempotency_key: str = Field(min_length=1, max_length=150)
+
+
+class EditorialVersionTransitionRequest(BaseModel):
+    expected_active_version: int | None = Field(default=None, ge=0)
 
 
 def _draft_response(draft: object) -> dict[str, object]:
@@ -430,6 +437,63 @@ async def editorial_publish_draft(
     )
     await session.commit()
     return response
+
+
+@app.post(
+    "/editorial/phases/{phase_id}/versions/{version}/deprecate",
+    dependencies=[Depends(enforce_protected_rate_limit)],
+)
+async def editorial_deprecate_version(
+    phase_id: str,
+    version: int,
+    payload: EditorialVersionTransitionRequest,
+    _: object = Depends(editorial_publisher),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, object]:
+    record = await session.get(
+        PhaseModuleVersion, {"phase_id": phase_id, "version": version}
+    )
+    if record is None:
+        raise NotFoundError("phase version")
+    current_active = await active_version(session, phase_id)
+    if payload.expected_active_version is not None and payload.expected_active_version != (current_active or 0):
+        raise ConflictError("active phase version is stale")
+    if current_active == version:
+        raise ConflictError("active phase version cannot be deprecated")
+    record.status = "deprecated"
+    await session.commit()
+    active_phase_module_cache.invalidate(phase_id)
+    return {"phase_id": phase_id, "version": version, "status": "deprecated"}
+
+
+@app.post(
+    "/editorial/phases/{phase_id}/versions/{version}/activate",
+    dependencies=[Depends(enforce_protected_rate_limit)],
+)
+async def editorial_activate_version(
+    phase_id: str,
+    version: int,
+    payload: EditorialVersionTransitionRequest,
+    _: object = Depends(editorial_admin),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, object]:
+    record = await session.get(
+        PhaseModuleVersion, {"phase_id": phase_id, "version": version}
+    )
+    if record is None:
+        raise NotFoundError("phase version")
+    current_active = await active_version(session, phase_id)
+    if payload.expected_active_version is not None and payload.expected_active_version != (current_active or 0):
+        raise ConflictError("active phase version is stale")
+    active = await session.get(PhaseModuleActive, phase_id)
+    if active is None:
+        session.add(PhaseModuleActive(phase_id=phase_id, version=version))
+    else:
+        active.version = version
+    record.status = "published"
+    await session.commit()
+    active_phase_module_cache.invalidate(phase_id)
+    return {"phase_id": phase_id, "version": version, "status": "published"}
 
 
 @app.get("/account/{user_id}/export", response_model=AccountDataExport, dependencies=[Depends(enforce_protected_rate_limit)])
