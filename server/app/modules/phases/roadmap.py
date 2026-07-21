@@ -76,8 +76,8 @@ def assemble_roadmap(
             today=today,
             stage=stage,
             handled_ids=handled,
-            now_window_days=7,
-            horizon_days=90,
+            now_window_days=module.thresholds.now_window_days,
+            horizon_days=module.thresholds.horizon_days,
         ),
     )
 

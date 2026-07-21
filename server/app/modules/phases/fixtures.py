@@ -137,5 +137,8 @@ SECOND_PHASE = LAUNCH_RELOCATION.model_copy(
             answer.model_copy(update={"id": f"parenting-{answer.id}"})
             for answer in LAUNCH_RELOCATION.qa_bank
         ],
+        "thresholds": LAUNCH_RELOCATION.thresholds.model_copy(
+            update={"now_window_days": 14, "horizon_days": 60}
+        ),
     }
 )

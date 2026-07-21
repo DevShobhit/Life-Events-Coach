@@ -42,6 +42,8 @@ class Concern(BaseModel):
 class AdaptiveThresholds(BaseModel):
     skip_count_for_relevance_check: int = Field(default=2, ge=1)
     freshness_days: int = Field(default=90, ge=1)
+    now_window_days: int = Field(default=7, ge=0)
+    horizon_days: int = Field(default=90, ge=0)
 
 
 class CuratedAnswer(BaseModel):
