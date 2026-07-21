@@ -8,6 +8,7 @@
     "start": "next start",
     "test": "bun test",
     "smoke:routes": "bun scripts/route-smoke.ts",
+    "smoke:browser": "bun scripts/browser-route-smoke.ts",
     "lint": "biome check app lib",
     "format": "biome format --write"
   },
