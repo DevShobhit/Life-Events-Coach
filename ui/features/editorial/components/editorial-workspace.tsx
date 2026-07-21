@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api/client";
 import type {
   EditorialDraft,
+  EditorialFreshness,
+  EditorialVersion,
   PhaseModule,
   PublishedPhaseModule,
 } from "@/lib/api/types";
@@ -20,6 +22,8 @@ export function EditorialWorkspace() {
   const [phaseId, setPhaseId] = useState("");
   const [drafts, setDrafts] = useState<EditorialDraft[]>([]);
   const [draft, setDraft] = useState<EditorialDraft | null>(null);
+  const [versions, setVersions] = useState<EditorialVersion[]>([]);
+  const [freshness, setFreshness] = useState<EditorialFreshness | null>(null);
   const [editorText, setEditorText] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -41,10 +45,20 @@ export function EditorialWorkspace() {
 
   useEffect(() => {
     if (!phaseId) return;
+    setVersions([]);
+    setFreshness(null);
     void apiClient
       .editorialDrafts(phaseId, role)
       .then(setDrafts)
       .catch(() => setMessage("Drafts could not be loaded."));
+    void apiClient
+      .editorialVersions(phaseId, role)
+      .then(setVersions)
+      .catch(() => setMessage("Published versions could not be loaded."));
+    void apiClient
+      .editorialFreshness(phaseId)
+      .then(setFreshness)
+      .catch(() => setMessage("Citation freshness could not be loaded."));
   }, [phaseId]);
 
   function selectDraft(next: EditorialDraft) {
@@ -193,8 +207,36 @@ export function EditorialWorkspace() {
               </Button>
             ))
           )}
+          <div className="mt-6 border-t border-border pt-4 text-sm">
+            <h2 className="font-medium">Published versions</h2>
+            {versions.length === 0 ? (
+              <p className="mt-2 text-muted-foreground">No published versions.</p>
+            ) : (
+              <ul className="mt-2 space-y-1 text-muted-foreground">
+                {versions.map((item) => (
+                  <li key={item.version}>
+                    v{item.version} · {item.status}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
         <div className="space-y-4">
+          <div
+            aria-label="Citation freshness"
+            className="rounded-md border border-border p-4 text-sm"
+          >
+            <h2 className="font-medium">Citation freshness</h2>
+            {freshness ? (
+              <p className="mt-1 text-muted-foreground">
+                Version {freshness.version}: {freshness.stale_count} stale of {freshness.items.length} citations
+                (review every {freshness.freshness_days} days).
+              </p>
+            ) : (
+              <p className="mt-1 text-muted-foreground">Freshness data unavailable.</p>
+            )}
+          </div>
           {draft ? (
             <>
               <div className="flex flex-wrap items-center justify-between gap-3">

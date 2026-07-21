@@ -6,7 +6,9 @@ import type {
   AskResponse,
   CardAction,
   EditorialDraft,
+  EditorialFreshness,
   EditorialValidation,
+  EditorialVersion,
   Enrollment,
   EnrollmentLifecycleEvent,
   NotificationPreference,
@@ -41,6 +43,24 @@ export class LifeCurriculumClient {
 
   phases(signal?: AbortSignal) {
     return this.request<PublishedPhaseModule[]>("/phases", { signal });
+  }
+
+  editorialVersions(
+    phaseId: string,
+    role: "editor" | "publisher" | "admin",
+    signal?: AbortSignal,
+  ) {
+    return this.request<EditorialVersion[]>(
+      `/editorial/phases/${encodeURIComponent(phaseId)}/versions`,
+      { editorialRole: role, signal },
+    );
+  }
+
+  editorialFreshness(phaseId: string, signal?: AbortSignal) {
+    return this.request<EditorialFreshness>(
+      `/editorial/freshness/${encodeURIComponent(phaseId)}`,
+      { signal },
+    );
   }
 
   roadmap(

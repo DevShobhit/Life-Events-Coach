@@ -4,6 +4,40 @@ import { LifeCurriculumClient } from "./client";
 import { ApiError } from "./errors";
 
 describe("LifeCurriculumClient", () => {
+  test("loads editorial versions and freshness for the selected phase", async () => {
+    const requests: Request[] = [];
+    const client = new LifeCurriculumClient({
+      baseUrl: "https://api.example.test",
+      fetcher: async (input, init) => {
+        requests.push(new Request(input, init));
+        return String(input).includes("freshness")
+          ? Response.json({
+              phase_id: "relocation",
+              version: 3,
+              as_of: "2026-07-21",
+              freshness_days: 30,
+              stale_count: 1,
+              items: [],
+            })
+          : Response.json([
+              {
+                phase_id: "relocation",
+                version: 3,
+                status: "active",
+                module: {},
+              },
+            ]);
+      },
+    });
+
+    await client.editorialVersions("relocation", "editor");
+    await client.editorialFreshness("relocation");
+
+    expect(requests[0]?.url).toContain("/editorial/phases/relocation/versions");
+    expect(requests[0]?.headers.get("X-User-Role")).toBe("editor");
+    expect(requests[1]?.url).toContain("/editorial/freshness/relocation");
+  });
+
   test("uses role-scoped editorial draft and publish endpoints", async () => {
     const requests: Request[] = [];
     const client = new LifeCurriculumClient({

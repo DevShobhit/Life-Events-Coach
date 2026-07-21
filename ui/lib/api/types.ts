@@ -71,6 +71,28 @@ export type PublishedPhaseModule = {
   module: PhaseModule;
 };
 
+export type EditorialVersion = PublishedPhaseModule & {
+  phase_id: string;
+  status: string;
+};
+
+export type EditorialFreshnessItem = {
+  concern_id: string;
+  citation_id: string;
+  reviewed_on: string;
+  days_since_review: number;
+  stale: boolean;
+};
+
+export type EditorialFreshness = {
+  phase_id: string;
+  version: number;
+  as_of: string;
+  freshness_days: number;
+  stale_count: number;
+  items: EditorialFreshnessItem[];
+};
+
 export type RoadmapCard = {
   concern_id: string;
   title: string;
