@@ -109,6 +109,22 @@ def test_browser_preflight_allows_development_user_scope_header() -> None:
     assert "X-User-ID" in response.headers["Access-Control-Allow-Headers"]
 
 
+def test_browser_preflight_allows_development_editorial_role_header() -> None:
+    with TestClient(app) as client:
+        response = client.options(
+            "/editorial/phases/relocation/versions",
+            headers={
+                "Origin": "http://127.0.0.1:3000",
+                "Access-Control-Request-Method": "GET",
+                "Access-Control-Request-Headers": "x-request-id,x-user-id,x-user-role",
+            },
+        )
+
+    assert response.status_code == 200
+    allowed_headers = response.headers["Access-Control-Allow-Headers"]
+    assert "X-User-Role" in allowed_headers
+
+
 def test_browser_preflight_allows_any_local_development_port() -> None:
     with TestClient(app) as client:
         response = client.options(

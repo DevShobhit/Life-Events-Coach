@@ -29,6 +29,7 @@ def test_route_family_uses_only_safe_route_categories() -> None:
     assert route_family("/roadmap/private-user/relocation") == "roadmap"
     assert route_family("/ask/private-user/relocation") == "ask"
     assert route_family("/enrollment/private-user/relocation") == "enrollment"
+    assert route_family("/editorial/phases/relocation/versions") == "editorial"
     assert route_family("/phases/relocation") is None
 
 
