@@ -46,6 +46,12 @@ from app.modules.notifications.preferences import (
     NotificationPreferenceRepository,
     NotificationPreferenceUpdate,
 )
+from app.modules.account.data_lifecycle import (
+    AccountDataExport,
+    AccountDeleteRequest,
+    delete_account_data,
+    export_account_data,
+)
 from app.modules.phases.ask_api import (
     AskResponse,
     RoadmapFoldRequest,
@@ -151,7 +157,7 @@ app.add_middleware(
         r"^https?://[^/]+$" if settings.app_env == "development" else None
     ),
     allow_credentials=False,
-    allow_methods=["GET", "POST", "PUT"],
+    allow_methods=["DELETE", "GET", "POST", "PUT"],
     allow_headers=["X-Request-ID", "X-User-ID", "Content-Type"],
 )
 instrument_fastapi(app)
@@ -172,6 +178,30 @@ async def enforce_protected_rate_limit(request: Request) -> None:
             method=request.method,
         )
         raise RateLimitExceededError()
+
+
+@app.get("/account/{user_id}/export", response_model=AccountDataExport, dependencies=[Depends(enforce_protected_rate_limit)])
+async def export_account(
+    user_id: str,
+    subject: AuthenticatedSubject = Depends(authenticated_subject),
+    session: AsyncSession = Depends(get_session),
+) -> AccountDataExport:
+    owner_id = authorize_subject_scope(subject, user_id)
+    return await export_account_data(session, owner_id)
+
+
+@app.delete("/account/{user_id}/data", dependencies=[Depends(enforce_protected_rate_limit)])
+async def delete_account(
+    user_id: str,
+    payload: AccountDeleteRequest,
+    subject: AuthenticatedSubject = Depends(authenticated_subject),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, bool]:
+    owner_id = authorize_subject_scope(subject, user_id)
+    if not payload.confirm:
+        raise BadRequestError("Deletion requires explicit confirmation.")
+    await delete_account_data(session, owner_id)
+    return {"deleted": True}
 
 
 @app.get("/health/live", tags=["operational"])
