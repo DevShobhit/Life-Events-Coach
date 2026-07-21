@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { submitRoadmapAction } from "@/features/roadmap/api";
 import { roadmapQueryKeys } from "@/features/roadmap/query-keys";
-import { logDevelopment } from "@/lib/logging/logger";
+import { logDevelopment, logServiceWorkerFailure } from "@/lib/logging/logger";
 import {
   replayQueuedRoadmapActions,
   toRoadmapActionPayload,
@@ -28,6 +28,9 @@ export function OfflineSync() {
           logDevelopment("service_worker.reset.completed");
         })
         .catch((error: unknown) => {
+          logServiceWorkerFailure("service_worker.reset.failed", {
+            errorType: error instanceof Error ? error.name : "unknown",
+          });
           logDevelopment("service_worker.reset.failed", {
             errorType: error instanceof Error ? error.name : "unknown",
           });
@@ -74,6 +77,9 @@ export function OfflineSync() {
           };
         })
         .catch((error: unknown) => {
+          logServiceWorkerFailure("service_worker.registration.failed", {
+            errorType: error instanceof Error ? error.name : "unknown",
+          });
           logDevelopment("service_worker.registration.failed", {
             errorType: error instanceof Error ? error.name : "unknown",
           });

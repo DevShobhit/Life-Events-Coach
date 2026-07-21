@@ -32,4 +32,10 @@ describe("service worker registration lifecycle", () => {
     expect(source).toContain("resetApplicationServiceWorker()");
     expect(source).toContain(".then(() =>");
   });
+
+  test("keeps registration and reset failures visible in production logs", () => {
+    expect(source).toContain("logServiceWorkerFailure");
+    expect(source).toContain('"service_worker.registration.failed"');
+    expect(source).toContain('"service_worker.reset.failed"');
+  });
 });

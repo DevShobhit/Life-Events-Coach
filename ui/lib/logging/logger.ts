@@ -13,3 +13,10 @@ export function logDevelopment(
     uiLogger.debug(message, properties);
   }
 }
+
+export function logServiceWorkerFailure(
+  message: string,
+  properties?: Record<string, unknown>,
+) {
+  uiLogger.warn(message, properties);
+}

@@ -29,7 +29,10 @@ export const useSessionStore = create<SessionState>()(
       setActiveStage: (activeStage) =>
         set((state) => ({
           activeStage,
-          phaseStages: { ...state.phaseStages, [state.activePhase]: activeStage },
+          phaseStages: {
+            ...state.phaseStages,
+            [state.activePhase]: activeStage,
+          },
         })),
       setDevelopmentUserId: (developmentUserId) => set({ developmentUserId }),
       setReducedMotion: (reducedMotion) => set({ reducedMotion }),
