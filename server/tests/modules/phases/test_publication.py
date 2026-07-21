@@ -107,7 +107,14 @@ def test_production_content_gate_rejects_fixture_domains_small_banks_and_missing
 def test_production_content_gate_rejects_more_than_sixty_concerns() -> None:
     payload = module_payload()
     payload["concerns"] = [
-        {**payload["concerns"][0], "id": f"concern-{index}"}
+        {
+            **payload["concerns"][0],
+            "id": f"concern-{index}",
+            "citation": {
+                **payload["concerns"][0]["citation"],
+                "id": f"citation-{index}",
+            },
+        }
         for index in range(61)
     ]
     module = PhaseModule.model_validate(payload)
