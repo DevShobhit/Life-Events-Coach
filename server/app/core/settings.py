@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     identity_audience: str | None = None
     identity_jwks_url: AnyHttpUrl | None = None
     approved_source_provider_url: AnyHttpUrl | None = None
+    approved_source_provider_token: str | None = None
     approved_source_provider_timeout_seconds: float = 2.0
     notification_provider_url: AnyHttpUrl | None = None
     notification_provider_token: str | None = None

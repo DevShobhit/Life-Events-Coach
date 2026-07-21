@@ -182,6 +182,7 @@ grounding_provider = ResilientGroundingProvider(
     primary=(
         HttpGroundingProvider(
             str(settings.approved_source_provider_url),
+            token=settings.approved_source_provider_token,
             timeout_seconds=settings.approved_source_provider_timeout_seconds,
         )
         if settings.approved_source_provider_url

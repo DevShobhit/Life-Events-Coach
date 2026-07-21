@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 from typing import Any
 
 import httpx
@@ -13,6 +14,7 @@ import httpx
 async def run_provider_smoke(
     *,
     base_url: str,
+    token: str | None = None,
     timeout_seconds: float = 5.0,
     transport: httpx.AsyncBaseTransport | None = None,
 ) -> dict[str, Any]:
@@ -22,7 +24,8 @@ async def run_provider_smoke(
             timeout=timeout_seconds,
             transport=transport,
         ) as client:
-            health = await client.get("/health")
+            headers = {"Authorization": f"Bearer {token}"} if token else {}
+            health = await client.get("/health", headers=headers)
             retrieve = await client.post(
                 "/retrieve",
                 json={
@@ -30,6 +33,7 @@ async def run_provider_smoke(
                     "question": "synthetic provider smoke question",
                     "max_results": 1,
                 },
+                headers=headers,
             )
     except httpx.HTTPError:
         return {
@@ -63,8 +67,17 @@ async def run_provider_smoke(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", required=True)
+    parser.add_argument(
+        "--token-env",
+        default="GROUNDING_PROVIDER_TOKEN",
+        help="environment variable containing a provider token; never printed",
+    )
     args = parser.parse_args()
-    result = asyncio.run(run_provider_smoke(base_url=args.base_url))
+    result = asyncio.run(
+        run_provider_smoke(
+            base_url=args.base_url, token=os.environ.get(args.token_env)
+        )
+    )
     print(json.dumps(result))
     return 0 if result["ok"] else 1
 

@@ -27,6 +27,28 @@ def test_provider_smoke_reports_only_safe_status_metadata() -> None:
     assert "question" not in result
 
 
+def test_provider_smoke_uses_optional_bearer_token_without_reporting_it() -> None:
+    authorization: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        authorization.append(request.headers.get("Authorization", ""))
+        if request.url.path == "/health":
+            return httpx.Response(200)
+        return httpx.Response(200, json={"sources": []})
+
+    result = asyncio.run(
+        run_provider_smoke(
+            base_url="https://provider.example",
+            token="provider-secret",
+            transport=httpx.MockTransport(handler),
+        )
+    )
+
+    assert result["ok"] is True
+    assert authorization == ["Bearer provider-secret", "Bearer provider-secret"]
+    assert "provider-secret" not in str(result)
+
+
 def test_provider_smoke_reports_transport_failure_without_payloads() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("provider unavailable", request=request)

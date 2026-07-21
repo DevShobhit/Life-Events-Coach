@@ -186,3 +186,20 @@ def test_http_provider_healthcheck_is_bounded_and_boolean() -> None:
     )
 
     assert asyncio.run(provider.healthcheck()) is True
+
+
+def test_http_provider_uses_configured_bearer_token() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"sources": []})
+
+    provider = HttpGroundingProvider(
+        "https://provider.example",
+        token="provider-secret",
+        transport=httpx.MockTransport(handler),
+    )
+    asyncio.run(provider.healthcheck())
+
+    assert requests[0].headers["Authorization"] == "Bearer provider-secret"

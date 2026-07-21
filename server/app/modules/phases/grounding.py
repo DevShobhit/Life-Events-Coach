@@ -46,6 +46,7 @@ class HttpGroundingProvider:
         self,
         base_url: str,
         *,
+        token: str | None = None,
         timeout_seconds: float = 2.0,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
@@ -54,15 +55,17 @@ class HttpGroundingProvider:
         if timeout_seconds <= 0:
             raise ValueError("grounding provider timeout must be positive")
         self._base_url = base_url.rstrip("/")
+        self._token = token
         self._timeout_seconds = timeout_seconds
         self._transport = transport
 
     async def healthcheck(self) -> bool:
         try:
+            headers = self._headers()
             async with httpx.AsyncClient(
                 timeout=self._timeout_seconds, transport=self._transport
             ) as client:
-                response = await client.get(f"{self._base_url}/health")
+                response = await client.get(f"{self._base_url}/health", headers=headers)
                 return response.is_success
         except Exception:
             return False
@@ -80,6 +83,7 @@ class HttpGroundingProvider:
                     "question": question,
                     "max_results": max_results,
                 },
+                headers=self._headers(),
             )
             response.raise_for_status()
             payload = response.json()
@@ -102,6 +106,13 @@ class HttpGroundingProvider:
                 )
             )
         return sources[:max_results]
+
+    def _headers(self) -> dict[str, str]:
+        return (
+            {"Authorization": f"Bearer {self._token}"}
+            if self._token
+            else {}
+        )
 
 
 class GroundingProvider(Protocol):
