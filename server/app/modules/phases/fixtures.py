@@ -5,7 +5,7 @@ legal, immigration, or relocation advice and must be replaced by editorially
 reviewed launch content before production publication.
 """
 
-from app.modules.phases.schemas import PhaseModule
+from app.modules.phases.schemas import OnboardingField, PhaseModule
 
 LAUNCH_RELOCATION_VERSION = 1
 
@@ -105,6 +105,37 @@ LAUNCH_RELOCATION = PhaseModule.model_validate(
                     }
                 ],
             }
+        ],
+    }
+)
+
+
+SECOND_PHASE = LAUNCH_RELOCATION.model_copy(
+    update={
+        "phase_id": "new_parent",
+        "display_name": "Starting a family",
+        "description": "A focused sequence for preparing a new family chapter.",
+        "onboarding_fields": ["parenting_stage"],
+        "onboarding_field_metadata": [
+            OnboardingField(
+                key="parenting_stage",
+                label="Parenting stage",
+                description="Where you are in the transition.",
+                required=True,
+            )
+        ],
+        "concerns": [
+            concern.model_copy(
+                update={
+                    "id": f"parenting-{concern.id}",
+                    "available_stages": ["preparing"],
+                }
+            )
+            for concern in LAUNCH_RELOCATION.concerns
+        ],
+        "qa_bank": [
+            answer.model_copy(update={"id": f"parenting-{answer.id}"})
+            for answer in LAUNCH_RELOCATION.qa_bank
         ],
     }
 )
