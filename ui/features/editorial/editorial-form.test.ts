@@ -57,4 +57,38 @@ describe("editorial metadata editor", () => {
       expect.objectContaining({ id: "school", bullets: ["keep"] }),
     ]);
   });
+
+  test("updates nested card and citation fields immutably", () => {
+    const module = {
+      schema_version: "1.0",
+      phase_id: "relocation",
+      onboarding_fields: [],
+      source_policy: [],
+      concerns: [
+        {
+          id: "housing",
+          title: "Housing",
+          bullets: [],
+          why_now: "now",
+          card: { body: "old" },
+          citation: { reviewed_on: "2026-01-01" },
+        },
+      ],
+    } as never;
+
+    const withCard = updateEditorialConcern(module, "housing", "card.body", "new");
+    const withCitation = updateEditorialConcern(
+      withCard,
+      "housing",
+      "citation.reviewed_on",
+      "2026-07-21",
+    );
+
+    expect(withCitation.concerns[0]).toEqual(
+      expect.objectContaining({
+        card: { body: "new" },
+        citation: { reviewed_on: "2026-07-21" },
+      }),
+    );
+  });
 });

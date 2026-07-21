@@ -412,6 +412,61 @@ export function EditorialWorkspace() {
                           value={concern.bullets.join("\n")}
                         />
                       </label>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <label className="grid gap-1 text-sm">
+                          Urgency
+                          <input
+                            aria-label={`${concern.id} urgency`}
+                            className="h-10 rounded-md border border-border bg-background px-3"
+                            min="0"
+                            onChange={(event) =>
+                              updateConcern(concern.id, "urgency", event.target.value)
+                            }
+                            type="number"
+                            value={concern.urgency}
+                          />
+                        </label>
+                        <label className="grid gap-1 text-sm">
+                          Horizon days
+                          <input
+                            aria-label={`${concern.id} horizon days`}
+                            className="h-10 rounded-md border border-border bg-background px-3"
+                            min="0"
+                            onChange={(event) =>
+                              updateConcern(concern.id, "horizon_days", event.target.value)
+                            }
+                            type="number"
+                            value={concern.horizon_days}
+                          />
+                        </label>
+                      </div>
+                      <label className="grid gap-1 text-sm">
+                        Card body
+                        <textarea
+                          aria-label={`${concern.id} card body`}
+                          className="min-h-20 rounded-md border border-border bg-background p-3"
+                          onChange={(event) =>
+                            updateConcern(concern.id, "card.body", event.target.value)
+                          }
+                          value={concern.card.body}
+                        />
+                      </label>
+                      <label className="grid gap-1 text-sm">
+                        Citation reviewed on
+                        <input
+                          aria-label={`${concern.id} citation reviewed on`}
+                          className="h-10 rounded-md border border-border bg-background px-3"
+                          onChange={(event) =>
+                            updateConcern(
+                              concern.id,
+                              "citation.reviewed_on",
+                              event.target.value,
+                            )
+                          }
+                          type="date"
+                          value={concern.citation.reviewed_on}
+                        />
+                      </label>
                     </div>
                   ))
                 )}
