@@ -19,6 +19,7 @@ type Check = { name: string; url: string; expected: RegExp };
 const checks: Check[] = [
   { name: "now route", url: `${baseUrl}/now`, expected: /<main|Your next steady step/i },
   { name: "horizon route", url: `${baseUrl}/horizon`, expected: /<main|See what is ahead/i },
+  { name: "editorial route", url: `${baseUrl}/editorial`, expected: /<main|Shape the curriculum/i },
 ];
 
 async function checkRoute(check: Check) {

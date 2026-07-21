@@ -27,4 +27,15 @@ describe("route smoke response classification", () => {
       ok: true,
     });
   });
+
+  test("accepts the editorial workspace shell", () => {
+    const result = classifyRouteResponse(
+      200,
+      "text/html; charset=utf-8",
+      "<main><h1>Shape the curriculum.</h1></main>",
+      /Shape the curriculum\./,
+    );
+    expect(result.ok).toBe(true);
+    expect(result.markerFound).toBe(true);
+  });
 });
