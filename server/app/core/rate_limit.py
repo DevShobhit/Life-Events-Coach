@@ -34,6 +34,6 @@ def route_family(path: str) -> str | None:
     first_segment = path.strip("/").split("/", 1)[0]
     return (
         first_segment
-        if first_segment in {"roadmap", "ask", "enrollment"}
+        if first_segment in {"roadmap", "ask", "enrollment", "editorial"}
         else None
     )

@@ -97,3 +97,39 @@ def test_editor_role_cannot_publish_and_duplicate_versions_are_conflicts() -> No
     finally:
         app.dependency_overrides.clear()
         app.dependency_overrides.update(previous)
+
+
+def test_editorial_draft_can_be_updated_previewed_and_published_by_publisher() -> None:
+    previous = dict(app.dependency_overrides)
+    app.dependency_overrides[get_session] = override_session
+    try:
+        with TestClient(app) as client:
+            editor_headers = {"X-User-ID": "editor-1", "X-User-Role": "editor"}
+            created = client.post(
+                "/editorial/phases/relocation/drafts",
+                headers=editor_headers,
+                json={"module": LAUNCH_RELOCATION.model_dump(mode="json")},
+            )
+            assert created.status_code == 200
+            draft_id = created.json()["draft_id"]
+            updated = client.patch(
+                f"/editorial/phases/relocation/drafts/{draft_id}",
+                headers=editor_headers,
+                json={"expected_revision": 1, "module": LAUNCH_RELOCATION.model_dump(mode="json")},
+            )
+            assert updated.status_code == 200
+            preview = client.get(
+                f"/editorial/phases/relocation/drafts/{draft_id}/preview",
+                headers=editor_headers,
+            )
+            assert preview.status_code == 200
+            published = client.post(
+                f"/editorial/phases/relocation/drafts/{draft_id}/publish",
+                headers={"X-User-ID": "publisher-1", "X-User-Role": "publisher"},
+                json={"expected_active_version": 2, "idempotency_key": "draft-publish-1"},
+            )
+        assert published.status_code == 200
+        assert published.json()["status"] == "published"
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(previous)

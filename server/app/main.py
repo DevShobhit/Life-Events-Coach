@@ -67,6 +67,16 @@ from app.modules.phases.catalog import (
 from app.modules.phases.enrollment import validate_enrollment
 from app.modules.phases.enrollment_repository import EnrollmentRepository
 from app.modules.phases.freshness import FreshnessReport, freshness_report
+from app.modules.phases.editorial import (
+    active_version,
+    create_draft,
+    get_draft,
+    list_drafts,
+    next_version,
+    record_audit,
+    update_draft,
+    validate_draft,
+)
 from app.modules.phases.grounding import GroundingTimeout
 from app.modules.phases.lifecycle import CardAction
 from app.modules.phases.publication import (
@@ -194,6 +204,32 @@ class EditorialPublishRequest(BaseModel):
     production: bool = False
 
 
+class EditorialDraftRequest(BaseModel):
+    module: PhaseModule
+
+
+class EditorialDraftUpdateRequest(EditorialDraftRequest):
+    expected_revision: int = Field(ge=1)
+
+
+class EditorialDraftPublishRequest(BaseModel):
+    expected_active_version: int | None = Field(default=None, ge=0)
+    idempotency_key: str = Field(min_length=1, max_length=150)
+
+
+def _draft_response(draft: object) -> dict[str, object]:
+    return {
+        "draft_id": draft.draft_id,
+        "phase_id": draft.phase_id,
+        "base_version": draft.base_version,
+        "status": draft.status,
+        "revision": draft.revision,
+        "module": draft.content,
+        "validation_report": draft.validation_report,
+        "published_version": draft.published_version,
+    }
+
+
 @app.get("/editorial/phases/{phase_id}/versions", dependencies=[Depends(enforce_protected_rate_limit)])
 async def editorial_versions(
     phase_id: str,
@@ -232,6 +268,144 @@ async def editorial_publish(
             "phase module publication validation failed", details=error.field_errors
         ) from error
     return {"phase_id": phase_id, "version": payload.version, "status": "published", "module": module}
+
+
+@app.get("/editorial/phases/{phase_id}/drafts", dependencies=[Depends(enforce_protected_rate_limit)])
+async def editorial_drafts(
+    phase_id: str,
+    _: object = Depends(editorial_subject),
+    session: AsyncSession = Depends(get_session),
+) -> list[dict[str, object]]:
+    return [_draft_response(draft) for draft in await list_drafts(session, phase_id)]
+
+
+@app.post("/editorial/phases/{phase_id}/drafts", dependencies=[Depends(enforce_protected_rate_limit)])
+async def editorial_create_draft(
+    phase_id: str,
+    payload: EditorialDraftRequest,
+    editorial: object = Depends(editorial_subject),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, object]:
+    if payload.module.phase_id != phase_id:
+        raise BadRequestError("module phase does not match route phase")
+    try:
+        draft = await create_draft(
+            session, phase_id=phase_id, content=payload.module.model_dump(mode="json"),
+            actor_id=editorial.subject.subject_id,
+        )
+    except ValueError as error:
+        raise BadRequestError("draft content is invalid") from error
+    await record_audit(
+        session, phase_id=phase_id, draft_id=draft.draft_id,
+        actor_id=editorial.subject.subject_id, actor_role=editorial.role, event="draft.created",
+    )
+    await session.commit()
+    return _draft_response(draft)
+
+
+@app.get("/editorial/phases/{phase_id}/drafts/{draft_id}", dependencies=[Depends(enforce_protected_rate_limit)])
+async def editorial_get_draft(
+    phase_id: str,
+    draft_id: str,
+    _: object = Depends(editorial_subject),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, object]:
+    draft = await get_draft(session, draft_id)
+    if draft is None or draft.phase_id != phase_id:
+        raise NotFoundError("draft")
+    return _draft_response(draft)
+
+
+@app.patch("/editorial/phases/{phase_id}/drafts/{draft_id}", dependencies=[Depends(enforce_protected_rate_limit)])
+async def editorial_update_draft(
+    phase_id: str,
+    draft_id: str,
+    payload: EditorialDraftUpdateRequest,
+    editorial: object = Depends(editorial_subject),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, object]:
+    draft = await get_draft(session, draft_id)
+    if draft is None or draft.phase_id != phase_id:
+        raise NotFoundError("draft")
+    if payload.module.phase_id != phase_id:
+        raise BadRequestError("module phase does not match route phase")
+    try:
+        draft = await update_draft(
+            session, draft, content=payload.module.model_dump(mode="json"),
+            actor_id=editorial.subject.subject_id, expected_revision=payload.expected_revision,
+        )
+    except RuntimeError as error:
+        raise ConflictError("draft revision is stale") from error
+    except ValueError as error:
+        raise BadRequestError("draft content is invalid") from error
+    await record_audit(
+        session, phase_id=phase_id, draft_id=draft_id,
+        actor_id=editorial.subject.subject_id, actor_role=editorial.role, event="draft.updated",
+    )
+    await session.commit()
+    return _draft_response(draft)
+
+
+@app.post("/editorial/phases/{phase_id}/drafts/{draft_id}/validate", dependencies=[Depends(enforce_protected_rate_limit)])
+async def editorial_validate_draft(
+    phase_id: str,
+    draft_id: str,
+    _: object = Depends(editorial_subject),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, object]:
+    draft = await get_draft(session, draft_id)
+    if draft is None or draft.phase_id != phase_id:
+        raise NotFoundError("draft")
+    report = await validate_draft(session, draft, production=get_settings().app_env == "production")
+    await session.commit()
+    return {"draft_id": draft_id, "valid": not report, "validation_report": report}
+
+
+@app.get("/editorial/phases/{phase_id}/drafts/{draft_id}/preview", dependencies=[Depends(enforce_protected_rate_limit)])
+async def editorial_preview_draft(
+    phase_id: str,
+    draft_id: str,
+    _: object = Depends(editorial_subject),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, object]:
+    draft = await get_draft(session, draft_id)
+    if draft is None or draft.phase_id != phase_id:
+        raise NotFoundError("draft")
+    return {"phase_id": phase_id, "draft_id": draft_id, "version": draft.base_version, "module": draft.content}
+
+
+@app.post("/editorial/phases/{phase_id}/drafts/{draft_id}/publish", dependencies=[Depends(enforce_protected_rate_limit)])
+async def editorial_publish_draft(
+    phase_id: str,
+    draft_id: str,
+    payload: EditorialDraftPublishRequest,
+    editorial: object = Depends(editorial_publisher),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, object]:
+    draft = await get_draft(session, draft_id)
+    if draft is None or draft.phase_id != phase_id:
+        raise NotFoundError("draft")
+    current_active = await active_version(session, phase_id)
+    if payload.expected_active_version is not None and payload.expected_active_version != (current_active or 0):
+        raise ConflictError("active phase version is stale")
+    report = await validate_draft(session, draft, production=get_settings().app_env == "production")
+    if report:
+        raise BadRequestError("draft validation failed", details=report)
+    version = await next_version(session, phase_id)
+    try:
+        module = await PhaseModulePublisher(
+            PhaseModuleRepository(session), PhaseModuleCache()
+        ).publish(draft.content, version=version, production=get_settings().app_env == "production")
+    except PublicationError as error:
+        raise BadRequestError("draft publication validation failed", details=error.field_errors) from error
+    draft.status = "published"
+    draft.published_version = version
+    await record_audit(
+        session, phase_id=phase_id, draft_id=draft_id, version=version,
+        actor_id=editorial.subject.subject_id, actor_role=editorial.role, event="draft.published",
+    )
+    await session.commit()
+    return {"phase_id": phase_id, "draft_id": draft_id, "version": version, "status": "published", "module": module}
 
 
 @app.get("/account/{user_id}/export", response_model=AccountDataExport, dependencies=[Depends(enforce_protected_rate_limit)])

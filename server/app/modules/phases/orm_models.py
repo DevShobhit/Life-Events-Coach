@@ -34,6 +34,44 @@ class PhaseModuleActive(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
+class PhaseModuleDraft(Base):
+    __tablename__ = "phase_module_drafts"
+
+    draft_id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    phase_id: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    base_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    schema_version: Mapped[str] = mapped_column(String(20), nullable=False)
+    content: Mapped[dict[str, Any]] = mapped_column(JsonType, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    updated_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    validation_report: Mapped[dict[str, Any] | None] = mapped_column(JsonType, nullable=True)
+    published_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+class EditorialAuditEventRecord(Base):
+    __tablename__ = "editorial_audit_events"
+
+    event_id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    phase_id: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    draft_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    actor_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    actor_role: Mapped[str] = mapped_column(String(20), nullable=False)
+    event: Mapped[str] = mapped_column(String(30), nullable=False)
+    request_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class PhaseEnrollment(Base):
     __tablename__ = "phase_enrollments"
 

@@ -19,6 +19,7 @@ def test_migration_files_are_ordered_sql_files() -> None:
         "004_notification_preferences.sql",
         "005_card_completion_date.sql",
         "006_phase_lifecycle.sql",
+        "007_editorial_drafts.sql",
     ]
 
 
@@ -40,6 +41,8 @@ def test_migrations_are_safe_when_database_init_scripts_precreated_schema() -> N
     assert "CREATE TABLE IF NOT EXISTS phase_enrollments" in sql
     assert "CREATE TABLE IF NOT EXISTS card_progress" in sql
     assert "CREATE TABLE IF NOT EXISTS card_actions" in sql
+    assert "CREATE TABLE IF NOT EXISTS phase_module_drafts" in sql
+    assert "CREATE TABLE IF NOT EXISTS editorial_audit_events" in sql
     assert "CREATE INDEX IF NOT EXISTS" in sql
     assert "FROM pg_trigger" in sql
 
