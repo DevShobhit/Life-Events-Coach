@@ -20,6 +20,8 @@ export type PhaseModule = {
   thresholds?: {
     skip_count_for_relevance_check?: number;
     freshness_days?: number;
+    now_window_days?: number;
+    horizon_days?: number;
   };
   source_policy: string[];
   concerns: EditorialConcern[];
