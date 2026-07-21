@@ -2,6 +2,27 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { browserRoadmapOfflineStore } from "@/lib/offline/roadmap-cache";
 
+export type AuthenticatedSession = {
+  userId: string;
+  accessToken: string;
+};
+
+export type SessionAdapter = {
+  subscribe: (
+    listener: (session: AuthenticatedSession | null) => void,
+  ) => () => void;
+};
+
+let configuredSessionAdapter: SessionAdapter | null = null;
+
+export function configureSessionAdapter(adapter: SessionAdapter | null) {
+  configuredSessionAdapter = adapter;
+}
+
+export function getConfiguredSessionAdapter() {
+  return configuredSessionAdapter;
+}
+
 type SessionState = {
   activePhase: string;
   activeStage: string;
@@ -13,10 +34,7 @@ type SessionState = {
   setActivePhase: (phaseId: string) => void;
   setActiveStage: (stage: string) => void;
   setDevelopmentUserId: (userId: string) => void;
-  setAuthenticatedSession: (session: {
-    userId: string;
-    accessToken: string;
-  }) => void;
+  setAuthenticatedSession: (session: AuthenticatedSession) => void;
   clearAuthenticatedSession: () => void;
   setReducedMotion: (enabled: boolean) => void;
 };
