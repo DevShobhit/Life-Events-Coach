@@ -58,7 +58,8 @@ function normalizeQueuedAction(value: unknown): QueuedAction | null {
   };
 }
 
-type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem"> &
+  Partial<Pick<Storage, "length" | "key">>;
 
 export function createRoadmapOfflineStore(
   storage: StorageLike,
@@ -124,6 +125,29 @@ export function createRoadmapOfflineStore(
       ) {
         storage.setItem(queueKey, JSON.stringify([...actions, action]));
       }
+    },
+    clearUser(userId: string) {
+      const actions = this.queued().filter(
+        (action) => action.userId !== userId,
+      );
+      storage.setItem(queueKey, JSON.stringify(actions));
+      if (!storage.length || !storage.key) return;
+      const keysToRemove: string[] = [];
+      for (let index = 0; index < storage.length; index += 1) {
+        const key = storage.key(index);
+        if (!key?.startsWith(`${keyPrefix}:roadmap:`)) continue;
+        try {
+          const identity = JSON.parse(
+            key.slice(`${keyPrefix}:roadmap:`.length),
+          );
+          if (Array.isArray(identity) && identity[0] === userId) {
+            keysToRemove.push(key);
+          }
+        } catch {
+          // Ignore unrelated or malformed application keys.
+        }
+      }
+      for (const key of keysToRemove) storage.removeItem(key);
     },
     async replay(execute: (action: QueuedAction) => Promise<void>) {
       const remaining: QueuedAction[] = [];

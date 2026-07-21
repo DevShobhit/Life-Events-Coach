@@ -143,4 +143,50 @@ describe("roadmap offline store", () => {
     expect(submitted).toEqual([]);
     expect(store.queued()).toEqual([]);
   });
+
+  test("clears only one subject's cached roadmaps and queued actions", () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+      get length() {
+        return values.size;
+      },
+      key: (index: number) => [...values.keys()][index] ?? null,
+    };
+    const store = createRoadmapOfflineStore(storage);
+    const roadmap = {
+      phase_id: "relocation",
+      version: 1,
+      now: [],
+      horizon: [],
+      current: null,
+      citations: [],
+    };
+    store.write("user-a", "relocation", "arrived", roadmap);
+    store.write("user-b", "relocation", "arrived", roadmap);
+    store.enqueue({
+      userId: "user-a",
+      phaseId: "relocation",
+      stage: "arrived",
+      concernId: "a",
+      action: "done",
+      idempotencyKey: "a",
+    });
+    store.enqueue({
+      userId: "user-b",
+      phaseId: "relocation",
+      stage: "arrived",
+      concernId: "b",
+      action: "done",
+      idempotencyKey: "b",
+    });
+
+    store.clearUser("user-a");
+
+    expect(store.read("user-a", "relocation", "arrived")).toBeNull();
+    expect(store.read("user-b", "relocation", "arrived")).not.toBeNull();
+    expect(store.queued().map((action) => action.userId)).toEqual(["user-b"]);
+  });
 });

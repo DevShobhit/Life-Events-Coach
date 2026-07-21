@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { browserRoadmapOfflineStore } from "@/lib/offline/roadmap-cache";
 
 type SessionState = {
   activePhase: string;
@@ -45,9 +46,22 @@ export const useSessionStore = create<SessionState>()(
         })),
       setDevelopmentUserId: (developmentUserId) => set({ developmentUserId }),
       setAuthenticatedSession: ({ userId, accessToken }) =>
-        set({ authenticatedUserId: userId, accessToken }),
+        set((state) => {
+          if (
+            state.authenticatedUserId &&
+            state.authenticatedUserId !== userId
+          ) {
+            browserRoadmapOfflineStore()?.clearUser(state.authenticatedUserId);
+          }
+          return { authenticatedUserId: userId, accessToken };
+        }),
       clearAuthenticatedSession: () =>
-        set({ authenticatedUserId: null, accessToken: null }),
+        set((state) => {
+          if (state.authenticatedUserId) {
+            browserRoadmapOfflineStore()?.clearUser(state.authenticatedUserId);
+          }
+          return { authenticatedUserId: null, accessToken: null };
+        }),
       setReducedMotion: (reducedMotion) => set({ reducedMotion }),
     }),
     {
