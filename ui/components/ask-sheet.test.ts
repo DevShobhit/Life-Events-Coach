@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { askModeMessage, didAskSheetClose } from "./ask-sheet";
+import { askModeMessage, didAskSheetClose, isRetryableAskError } from "./ask-sheet";
 
 describe("AskSheet reset policy", () => {
   test("resets only when the sheet transitions from open to closed", () => {
@@ -14,5 +14,11 @@ describe("AskSheet response messaging", () => {
   test("gives refusal responses a recovery action message", () => {
     expect(askModeMessage("refusal")).toContain("rephrase");
     expect(askModeMessage("grounded")).toBeNull();
+  });
+
+  test("recognizes retryable Ask failures", () => {
+    expect(isRetryableAskError({ status: 503 })).toBe(true);
+    expect(isRetryableAskError({ status: 504 })).toBe(true);
+    expect(isRetryableAskError({ status: 422 })).toBe(false);
   });
 });

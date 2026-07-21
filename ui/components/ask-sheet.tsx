@@ -37,6 +37,14 @@ export function askModeMessage(mode: string) {
     : null;
 }
 
+export function isRetryableAskError(error: unknown) {
+  const status =
+    typeof error === "object" && error !== null && "status" in error
+      ? error.status
+      : undefined;
+  return status === 408 || status === 429 || status === 503 || status === 504;
+}
+
 const quickPrompts = [
   "What should I do first?",
   "What can catch me off guard?",
@@ -166,9 +174,22 @@ export function AskSheet({
           </Button>
         </form>
         {error ? (
-          <p className="text-sm text-destructive" role="alert">
-            {getUserFacingError(error)}
-          </p>
+          <div className="space-y-2" role="alert">
+            <p className="text-sm text-destructive">
+              {getUserFacingError(error)}
+            </p>
+            {submitMutation.error && isRetryableAskError(submitMutation.error) ? (
+              <Button
+                className="min-h-11"
+                disabled={submitMutation.isPending}
+                onClick={() => void submit(form.getValues())}
+                type="button"
+                variant="outline"
+              >
+                Retry question
+              </Button>
+            ) : null}
+          </div>
         ) : null}
         {folded ? (
           <p aria-live="polite" className="text-sm text-muted-foreground">
