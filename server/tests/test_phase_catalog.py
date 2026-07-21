@@ -51,7 +51,7 @@ def test_phase_read_includes_version_and_citations() -> None:
 
 
 def test_unknown_phase_is_not_exposed_by_the_catalog() -> None:
-    response = TestClient(app).get("/phases/new_parent")
+    response = TestClient(app).get("/phases/not-a-real-phase")
 
     assert response.status_code == 404
     assert response.json() == {

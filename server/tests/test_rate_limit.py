@@ -1,8 +1,26 @@
+from collections.abc import AsyncIterator
+
 from app.core.auth import AuthenticatedSubject, authenticated_subject
+from app.core.database import get_session
 from app.core.errors import RateLimitExceededError
 from app.core.rate_limit import SlidingWindowRateLimiter, route_family
 from app.main import app, protected_rate_limiter, settings
+from app.modules.phases.fixtures import LAUNCH_RELOCATION
+from app.modules.phases.orm_models import Base
+from app.modules.phases.repository import PhaseModuleRepository
 from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+
+async def override_rate_session() -> AsyncIterator[AsyncSession]:
+    engine = create_async_engine("sqlite+aiosqlite://")
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with factory() as session:
+        await PhaseModuleRepository(session).publish(LAUNCH_RELOCATION, version=1)
+        yield session
+    await engine.dispose()
 
 
 def test_sliding_window_allows_configured_requests_then_rejects_until_expiry() -> None:
@@ -69,6 +87,7 @@ def test_production_protected_route_returns_retryable_rate_limit_response() -> N
 
     previous_overrides = dict(app.dependency_overrides)
     app.dependency_overrides[authenticated_subject] = authenticated_test_subject
+    app.dependency_overrides[get_session] = override_rate_session
     try:
         with TestClient(app) as client:
             client.get(
