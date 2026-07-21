@@ -64,19 +64,20 @@ from app.modules.phases.catalog import (
     get_persisted_module,
     list_persisted_modules,
 )
-from app.modules.phases.enrollment import validate_enrollment
-from app.modules.phases.enrollment_repository import EnrollmentRepository
-from app.modules.phases.freshness import FreshnessReport, freshness_report
 from app.modules.phases.editorial import (
     active_version,
     create_draft,
     get_draft,
+    get_publication_replay,
     list_drafts,
     next_version,
     record_audit,
     update_draft,
     validate_draft,
 )
+from app.modules.phases.enrollment import validate_enrollment
+from app.modules.phases.enrollment_repository import EnrollmentRepository
+from app.modules.phases.freshness import FreshnessReport, freshness_report
 from app.modules.phases.grounding import GroundingTimeout
 from app.modules.phases.lifecycle import CardAction
 from app.modules.phases.publication import (
@@ -385,6 +386,11 @@ async def editorial_publish_draft(
     draft = await get_draft(session, draft_id)
     if draft is None or draft.phase_id != phase_id:
         raise NotFoundError("draft")
+    replay = await get_publication_replay(session, payload.idempotency_key)
+    if replay is not None:
+        if replay.phase_id != phase_id or replay.draft_id != draft_id:
+            raise ConflictError("idempotency key is already used for another publication")
+        return replay.response
     current_active = await active_version(session, phase_id)
     if payload.expected_active_version is not None and payload.expected_active_version != (current_active or 0):
         raise ConflictError("active phase version is stale")
@@ -398,14 +404,32 @@ async def editorial_publish_draft(
         ).publish(draft.content, version=version, production=get_settings().app_env == "production")
     except PublicationError as error:
         raise BadRequestError("draft publication validation failed", details=error.field_errors) from error
+    response = {
+        "phase_id": phase_id,
+        "draft_id": draft_id,
+        "version": version,
+        "status": "published",
+        "module": module.model_dump(mode="json"),
+    }
     draft.status = "published"
     draft.published_version = version
     await record_audit(
         session, phase_id=phase_id, draft_id=draft_id, version=version,
         actor_id=editorial.subject.subject_id, actor_role=editorial.role, event="draft.published",
     )
+    from app.modules.phases.orm_models import EditorialPublicationIdempotencyRecord
+
+    session.add(
+        EditorialPublicationIdempotencyRecord(
+            idempotency_key=payload.idempotency_key,
+            phase_id=phase_id,
+            draft_id=draft_id,
+            version=version,
+            response=response,
+        )
+    )
     await session.commit()
-    return {"phase_id": phase_id, "draft_id": draft_id, "version": version, "status": "published", "module": module}
+    return response
 
 
 @app.get("/account/{user_id}/export", response_model=AccountDataExport, dependencies=[Depends(enforce_protected_rate_limit)])

@@ -133,3 +133,34 @@ def test_editorial_draft_can_be_updated_previewed_and_published_by_publisher() -
     finally:
         app.dependency_overrides.clear()
         app.dependency_overrides.update(previous)
+
+
+def test_repeating_editorial_publish_idempotency_key_replays_original_version() -> None:
+    previous = dict(app.dependency_overrides)
+    app.dependency_overrides[get_session] = override_session
+    try:
+        with TestClient(app) as client:
+            editor_headers = {"X-User-ID": "editor-1", "X-User-Role": "editor"}
+            created = client.post(
+                "/editorial/phases/relocation/drafts",
+                headers=editor_headers,
+                json={"module": LAUNCH_RELOCATION.model_dump(mode="json")},
+            )
+            draft_id = created.json()["draft_id"]
+            headers = {"X-User-ID": "publisher-1", "X-User-Role": "publisher"}
+            first = client.post(
+                f"/editorial/phases/relocation/drafts/{draft_id}/publish",
+                headers=headers,
+                json={"expected_active_version": 3, "idempotency_key": "repeat-1"},
+            )
+            repeated = client.post(
+                f"/editorial/phases/relocation/drafts/{draft_id}/publish",
+                headers=headers,
+                json={"expected_active_version": 3, "idempotency_key": "repeat-1"},
+            )
+        assert first.status_code == 200
+        assert repeated.status_code == 200
+        assert repeated.json()["version"] == first.json()["version"]
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(previous)

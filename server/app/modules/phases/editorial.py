@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.phases.orm_models import (
     EditorialAuditEventRecord,
+    EditorialPublicationIdempotencyRecord,
     PhaseModuleActive,
     PhaseModuleDraft,
     PhaseModuleVersion,
@@ -104,3 +105,9 @@ async def record_audit(
         event_id=str(uuid4()), phase_id=phase_id, draft_id=draft_id, version=version,
         actor_id=actor_id, actor_role=actor_role, event=event, request_id=request_id,
     ))
+
+
+async def get_publication_replay(
+    session: AsyncSession, idempotency_key: str
+) -> EditorialPublicationIdempotencyRecord | None:
+    return await session.get(EditorialPublicationIdempotencyRecord, idempotency_key)

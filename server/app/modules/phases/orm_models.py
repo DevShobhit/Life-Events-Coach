@@ -72,6 +72,19 @@ class EditorialAuditEventRecord(Base):
     )
 
 
+class EditorialPublicationIdempotencyRecord(Base):
+    __tablename__ = "editorial_publication_idempotency"
+
+    idempotency_key: Mapped[str] = mapped_column(String(150), primary_key=True)
+    phase_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    draft_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    response: Mapped[dict[str, Any]] = mapped_column(JsonType, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class PhaseEnrollment(Base):
     __tablename__ = "phase_enrollments"
 
