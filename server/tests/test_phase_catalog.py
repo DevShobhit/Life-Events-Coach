@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
 
+import pytest
 from app.core.database import get_session
 from app.main import app
 from app.modules.phases.fixtures import LAUNCH_RELOCATION
@@ -20,7 +21,17 @@ async def override_session() -> AsyncIterator[AsyncSession]:
     await engine.dispose()
 
 
-app.dependency_overrides[get_session] = override_session
+
+
+@pytest.fixture(autouse=True)
+def isolated_catalog_session():
+    previous_overrides = dict(app.dependency_overrides)
+    app.dependency_overrides[get_session] = override_session
+    try:
+        yield
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(previous_overrides)
 
 
 def test_catalog_exposes_only_the_launch_relocation_module() -> None:
