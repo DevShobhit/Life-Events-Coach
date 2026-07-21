@@ -22,6 +22,7 @@ describe("service worker registration lifecycle", () => {
       "service_worker.registration.failed",
       "service_worker.update.available",
       "service_worker.controller.changed",
+      "service_worker.update.failed",
     ]) {
       expect(source).toContain(event);
     }

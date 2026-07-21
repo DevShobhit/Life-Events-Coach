@@ -67,6 +67,14 @@ export function OfflineSync() {
             "controllerchange",
             handleControllerChange,
           );
+          void registration.update().catch((error: unknown) => {
+            logServiceWorkerFailure("service_worker.update.failed", {
+              errorType: error instanceof Error ? error.name : "unknown",
+            });
+            logDevelopment("service_worker.update.failed", {
+              errorType: error instanceof Error ? error.name : "unknown",
+            });
+          });
           cleanupRegistration = () => {
             registration.removeEventListener("updatefound", handleUpdateFound);
             worker?.removeEventListener("statechange", handleStateChange);
