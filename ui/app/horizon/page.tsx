@@ -38,6 +38,7 @@ import { useRouteLoadLogging } from "@/lib/logging/route-load";
 import { useSessionStore } from "@/lib/state/session";
 import {
   getUserFacingError,
+  isApiErrorCode,
   shouldQueueRoadmapAction,
 } from "@/lib/ux/feedback";
 
@@ -93,6 +94,8 @@ export default function HorizonPage() {
   };
 
   if (isLoading && !roadmap) return <RouteLoading />;
+  if (isApiErrorCode(queryError, "not_found") && !roadmap)
+    return <SetupState />;
   if (error && !roadmap) return <RouteError onRetry={() => void refetch()} />;
 
   return (

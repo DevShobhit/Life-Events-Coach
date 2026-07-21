@@ -23,6 +23,7 @@ import { nextSkipCount, shouldAskRelevance } from "@/lib/roadmap/transitions";
 import { useSessionStore } from "@/lib/state/session";
 import {
   getUserFacingError,
+  isApiErrorCode,
   shouldQueueRoadmapAction,
 } from "@/lib/ux/feedback";
 
@@ -61,6 +62,8 @@ export default function NowPage() {
 
   if (!userId.trim() || !phaseId.trim() || !stage.trim()) return <SetupState />;
   if (isLoading && !roadmap) return <RouteLoading />;
+  if (isApiErrorCode(query.error, "not_found") && !roadmap)
+    return <SetupState />;
   if (error && !roadmap)
     return <RouteError onRetry={() => void query.refetch()} />;
 

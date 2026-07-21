@@ -5,6 +5,10 @@ export function getUserFacingError(error: unknown): string {
   return errorMessages.internal_error;
 }
 
+export function isApiErrorCode(error: unknown, code: string): boolean {
+  return error instanceof ApiError && error.code === code;
+}
+
 export function shouldQueueRoadmapAction(error: unknown): boolean {
   if (error instanceof ApiError) return error.status >= 500;
   return error instanceof TypeError;

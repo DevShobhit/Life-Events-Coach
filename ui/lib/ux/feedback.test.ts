@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { ApiError } from "@/lib/api/errors";
 import {
   getUserFacingError,
+  isApiErrorCode,
   shouldQueueRoadmapAction,
 } from "@/lib/ux/feedback";
 
@@ -43,4 +44,13 @@ describe("shouldQueueRoadmapAction", () => {
       false,
     );
   });
+});
+
+test("identifies setup-recovery API errors by stable code", () => {
+  expect(
+    isApiErrorCode(new ApiError("not_found", null, 404), "not_found"),
+  ).toBe(true);
+  expect(
+    isApiErrorCode(new ApiError("forbidden", null, 403), "not_found"),
+  ).toBe(false);
 });
