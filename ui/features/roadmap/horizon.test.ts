@@ -16,3 +16,10 @@ test("labels stale citation evidence in Horizon", async () => {
   expect(source).toContain("Source review due");
   expect(source).toContain("card.citation_stale");
 });
+
+test("surfaces Horizon citation links in the detail dialog", async () => {
+  const source = await Bun.file("app/horizon/page.tsx").text();
+  expect(source).toContain("selectedCard.citation_title");
+  expect(source).toContain("selectedCard.citation_url");
+  expect(source).toContain('rel="noreferrer"');
+});

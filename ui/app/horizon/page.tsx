@@ -195,6 +195,17 @@ export default function HorizonPage() {
               </li>
             ))}
           </ul>
+          {selectedCard ? (
+            <a
+              className="inline-flex min-h-11 items-center text-sm underline underline-offset-4"
+              href={selectedCard.citation_url}
+              rel="noreferrer"
+              target="_blank"
+            >
+              {selectedCard.citation_title}
+              <span className="sr-only">(opens in a new tab)</span>
+            </a>
+          ) : null}
           <DialogFooter>
             <button
               className="min-h-11 rounded-md border border-destructive px-4 text-sm font-medium text-destructive"
