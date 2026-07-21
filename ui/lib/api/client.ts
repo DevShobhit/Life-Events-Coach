@@ -2,14 +2,14 @@ import { appConfig } from "@/lib/config/app-config";
 import { apiLogger } from "@/lib/logging/logger";
 import { ApiError } from "./errors";
 import type {
+  AccountDataExport,
   AskResponse,
   CardAction,
+  EditorialDraft,
+  EditorialValidation,
   Enrollment,
   EnrollmentLifecycleEvent,
   NotificationPreference,
-  AccountDataExport,
-  EditorialDraft,
-  EditorialValidation,
   PhaseModule,
   PublishedPhaseModule,
   RoadmapResponse,
@@ -177,17 +177,79 @@ export class LifeCurriculumClient {
     );
   }
 
-  editorialDrafts(phaseId: string, role: "editor" | "publisher" | "admin", signal?: AbortSignal) {
+  editorialDrafts(
+    phaseId: string,
+    role: "editor" | "publisher" | "admin",
+    signal?: AbortSignal,
+  ) {
     return this.request<EditorialDraft[]>(
       `/editorial/phases/${encodeURIComponent(phaseId)}/drafts`,
       { editorialRole: role, signal },
     );
   }
 
-  createEditorialDraft(phaseId: string, role: "editor" | "publisher" | "admin", module: PhaseModule) {
+  createEditorialDraft(
+    phaseId: string,
+    role: "editor" | "publisher" | "admin",
+    module: PhaseModule,
+  ) {
     return this.request<EditorialDraft>(
       `/editorial/phases/${encodeURIComponent(phaseId)}/drafts`,
       { editorialRole: role, method: "POST", body: { module } },
+    );
+  }
+
+  editorialDraft(
+    phaseId: string,
+    draftId: string,
+    role: "editor" | "publisher" | "admin",
+    signal?: AbortSignal,
+  ) {
+    return this.request<EditorialDraft>(
+      `/editorial/phases/${encodeURIComponent(phaseId)}/drafts/${encodeURIComponent(draftId)}`,
+      { editorialRole: role, signal },
+    );
+  }
+
+  editorialPreview(
+    phaseId: string,
+    draftId: string,
+    role: "editor" | "publisher" | "admin",
+  ) {
+    return this.request<{
+      phase_id: string;
+      draft_id: string;
+      version: number | null;
+      module: PhaseModule;
+    }>(
+      `/editorial/phases/${encodeURIComponent(phaseId)}/drafts/${encodeURIComponent(draftId)}/preview`,
+      { editorialRole: role },
+    );
+  }
+
+  publishEditorialDraft(
+    phaseId: string,
+    draftId: string,
+    role: "publisher" | "admin",
+    expectedActiveVersion: number | null,
+    idempotencyKey: string,
+  ) {
+    return this.request<{
+      phase_id: string;
+      draft_id: string;
+      version: number;
+      status: string;
+      module: PhaseModule;
+    }>(
+      `/editorial/phases/${encodeURIComponent(phaseId)}/drafts/${encodeURIComponent(draftId)}/publish`,
+      {
+        editorialRole: role,
+        method: "POST",
+        body: {
+          expected_active_version: expectedActiveVersion,
+          idempotency_key: idempotencyKey,
+        },
+      },
     );
   }
 
@@ -200,11 +262,19 @@ export class LifeCurriculumClient {
   ) {
     return this.request<EditorialDraft>(
       `/editorial/phases/${encodeURIComponent(phaseId)}/drafts/${encodeURIComponent(draftId)}`,
-      { editorialRole: role, method: "PATCH", body: { module, expected_revision: expectedRevision } },
+      {
+        editorialRole: role,
+        method: "PATCH",
+        body: { module, expected_revision: expectedRevision },
+      },
     );
   }
 
-  validateEditorialDraft(phaseId: string, draftId: string, role: "editor" | "publisher" | "admin") {
+  validateEditorialDraft(
+    phaseId: string,
+    draftId: string,
+    role: "editor" | "publisher" | "admin",
+  ) {
     return this.request<EditorialValidation>(
       `/editorial/phases/${encodeURIComponent(phaseId)}/drafts/${encodeURIComponent(draftId)}/validate`,
       { editorialRole: role, method: "POST" },
