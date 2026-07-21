@@ -2,7 +2,7 @@ export {};
 
 type BrowserModule = {
   chromium: {
-    launch(options?: { headless?: boolean }): Promise<Browser>;
+    launch(options?: { headless?: boolean; executablePath?: string }): Promise<Browser>;
   };
 };
 
@@ -49,7 +49,10 @@ async function loadBrowser(): Promise<BrowserModule> {
 }
 
 const { chromium } = await loadBrowser();
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({
+  headless: true,
+  executablePath: process.env.SMOKE_BROWSER_EXECUTABLE,
+});
 let failed = false;
 
 try {
