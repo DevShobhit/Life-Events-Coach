@@ -34,6 +34,7 @@ describe("LifeCurriculumClient", () => {
     await client.editorialFreshness("relocation");
     await client.editorialPreview("relocation", "draft-1", "editor");
     await client.editorialDraft("relocation", "draft-1", "editor");
+    await client.rollbackEditorialVersion("relocation", 1, 2, "admin");
 
     expect(requests[0]?.url).toContain("/editorial/phases/relocation/versions");
     expect(requests[0]?.headers.get("X-User-Role")).toBe("editor");
@@ -44,6 +45,9 @@ describe("LifeCurriculumClient", () => {
     expect(requests[3]?.url).toContain(
       "/editorial/phases/relocation/drafts/draft-1",
     );
+    expect(requests[4]?.method).toBe("POST");
+    expect(requests[4]?.url).toContain("/versions/1/rollback");
+    expect(requests[4]?.headers.get("X-User-Role")).toBe("admin");
   });
 
   test("uses role-scoped editorial draft and publish endpoints", async () => {

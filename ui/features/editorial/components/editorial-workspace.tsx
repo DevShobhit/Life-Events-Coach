@@ -248,6 +248,39 @@ export function EditorialWorkspace() {
     }
   }
 
+  async function rollbackVersion(version: number) {
+    if (role !== "admin" || !freshness) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const result = await apiClient.rollbackEditorialVersion(
+        phaseId,
+        version,
+        freshness.version,
+        role,
+      );
+      setVersions((current) =>
+        current.map((item) =>
+          item.version === version
+            ? { ...item, status: "published" }
+            : item.version === result.previous_version
+              ? { ...item, status: "deprecated" }
+              : item,
+        ),
+      );
+      setFreshness({ ...freshness, version });
+      setMessage(`Rolled back to version ${version}.`);
+    } catch (error) {
+      setMessage(
+        error instanceof ApiError && error.code === "conflict"
+          ? "The active version changed. Refresh versions before rolling back."
+          : "Rollback failed. The active version was not changed.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <section className="space-y-6" aria-label="Editorial workspace">
       <div className="flex flex-wrap items-end gap-3">
@@ -299,8 +332,18 @@ export function EditorialWorkspace() {
             ) : (
               <ul className="mt-2 space-y-1 text-muted-foreground">
                 {versions.map((item) => (
-                  <li key={item.version}>
-                    v{item.version} · {item.status}
+                  <li className="flex items-center justify-between gap-2" key={item.version}>
+                    <span>v{item.version} · {item.status}</span>
+                    {role === "admin" && freshness?.version !== item.version ? (
+                      <Button
+                        disabled={busy}
+                        onClick={() => void rollbackVersion(item.version)}
+                        type="button"
+                        variant="ghost"
+                      >
+                        Roll back
+                      </Button>
+                    ) : null}
                   </li>
                 ))}
               </ul>

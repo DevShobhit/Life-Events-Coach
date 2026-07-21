@@ -56,6 +56,27 @@ export class LifeCurriculumClient {
     );
   }
 
+  rollbackEditorialVersion(
+    phaseId: string,
+    version: number,
+    expectedActiveVersion: number | null,
+    role: "admin",
+  ) {
+    return this.request<{
+      phase_id: string;
+      version: number;
+      previous_version: number | null;
+      status: string;
+    }>(
+      `/editorial/phases/${encodeURIComponent(phaseId)}/versions/${version}/rollback`,
+      {
+        editorialRole: role,
+        method: "POST",
+        body: { expected_active_version: expectedActiveVersion },
+      },
+    );
+  }
+
   editorialFreshness(phaseId: string, signal?: AbortSignal) {
     return this.request<EditorialFreshness>(
       `/editorial/freshness/${encodeURIComponent(phaseId)}`,
