@@ -24,7 +24,7 @@ type Page = {
     options?: { waitUntil?: string; timeout?: number },
   ): Promise<any>;
   waitForTimeout(timeout: number): Promise<void>;
-  evaluate<T>(fn: () => T): Promise<T>;
+  evaluate<T>(fn: () => T | Promise<T>): Promise<T>;
   close(): Promise<void>;
 };
 
@@ -116,11 +116,24 @@ try {
         );
       }
 
-      const serviceWorker = await page.evaluate(() => {
-        const registration = navigator.serviceWorker?.controller;
+      const serviceWorker = await page.evaluate(async () => {
+        const registrations = navigator.serviceWorker
+          ? await navigator.serviceWorker.getRegistrations()
+          : [];
+        const registration = registrations.find((candidate) =>
+          location.href.startsWith(candidate.scope),
+        );
+        const controller = navigator.serviceWorker?.controller;
         return {
-          controlled: Boolean(registration),
-          scriptUrl: registration?.scriptURL ?? null,
+          controlled: Boolean(controller),
+          controllerScriptUrl: controller?.scriptURL ?? null,
+          registrationCount: registrations.length,
+          scope: registration?.scope ?? null,
+          activeScriptUrl: registration?.active?.scriptURL ?? null,
+          installingScriptUrl: registration?.installing?.scriptURL ?? null,
+          waitingScriptUrl: registration?.waiting?.scriptURL ?? null,
+          updateState: registration?.active?.state ?? null,
+          cacheNames: "caches" in window ? await caches.keys() : [],
         };
       });
       const layout = await page.evaluate(() => ({
