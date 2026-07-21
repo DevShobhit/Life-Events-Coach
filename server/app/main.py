@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import date
@@ -29,12 +30,14 @@ from app.core.errors import (
     BadRequestError,
     GatewayTimeoutError,
     NotFoundError,
+    RateLimitExceededError,
     app_error_handler,
     http_error_handler,
     unexpected_error_handler,
     validation_error_handler,
 )
 from app.core.logging import configure_logging
+from app.core.rate_limit import SlidingWindowRateLimiter, route_family
 from app.core.settings import get_settings
 from app.core.telemetry import configure_tracing, instrument_fastapi
 from app.modules.phases.ask_api import (
@@ -125,6 +128,10 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 
 settings = get_settings()
+protected_rate_limiter = SlidingWindowRateLimiter(
+    max_requests=settings.protected_rate_limit_requests,
+    window_seconds=settings.protected_rate_limit_window_seconds,
+)
 app = FastAPI(title="LifeCurriculum API", version="0.1.0", lifespan=lifespan)
 app.add_exception_handler(AppError, app_error_handler)
 app.add_exception_handler(RequestValidationError, validation_error_handler)
@@ -142,6 +149,23 @@ app.add_middleware(
     allow_headers=["X-Request-ID", "X-User-ID", "Content-Type"],
 )
 instrument_fastapi(app)
+
+
+async def enforce_protected_rate_limit(request: Request) -> None:
+    if settings.app_env != "production":
+        return
+    family = route_family(request.url.path)
+    if family is None:
+        return
+    client_host = request.client.host if request.client else "unknown"
+    scope = hashlib.sha256(f"{client_host}:{family}".encode()).hexdigest()[:16]
+    if not protected_rate_limiter.allow(scope):
+        logger.warning(
+            "abuse.rate_limited",
+            route_family=family,
+            method=request.method,
+        )
+        raise RateLimitExceededError()
 
 
 @app.get("/health/live", tags=["operational"])
@@ -197,6 +221,7 @@ async def roadmap(
     stage: str = "arrived",
     session: AsyncSession = Depends(get_session),  # noqa: B008
     subject: AuthenticatedSubject = Depends(authenticated_subject),  # noqa: B008
+    _rate_limit: None = Depends(enforce_protected_rate_limit),  # noqa: B008
 ) -> RoadmapResponse:
     authorized_user_id = authorize_subject_scope(subject, user_id)
     published = await get_persisted_module(session, phase_id)
@@ -234,6 +259,7 @@ async def enrollment(
     phase_id: str,
     session: AsyncSession = Depends(get_session),  # noqa: B008
     subject: AuthenticatedSubject = Depends(authenticated_subject),  # noqa: B008
+    _rate_limit: None = Depends(enforce_protected_rate_limit),  # noqa: B008
 ) -> Enrollment:
     authorized_user_id = authorize_subject_scope(subject, user_id)
     enrollment_record = await EnrollmentRepository(session).get(
@@ -255,6 +281,7 @@ async def save_enrollment(
     request: EnrollmentRequest,
     session: AsyncSession = Depends(get_session),  # noqa: B008
     subject: AuthenticatedSubject = Depends(authenticated_subject),  # noqa: B008
+    _rate_limit: None = Depends(enforce_protected_rate_limit),  # noqa: B008
 ) -> Enrollment:
     authorized_user_id = authorize_subject_scope(subject, user_id)
     published = await get_persisted_module(session, phase_id)
@@ -288,6 +315,7 @@ async def ask(
     request: AskRequest,
     session: AsyncSession = Depends(get_session),  # noqa: B008
     subject: AuthenticatedSubject = Depends(authenticated_subject),  # noqa: B008
+    _rate_limit: None = Depends(enforce_protected_rate_limit),  # noqa: B008
 ) -> AskResponse:
     authorize_subject_scope(subject, user_id)
     published = await get_persisted_module(session, phase_id)
@@ -313,6 +341,7 @@ async def confirm_roadmap_fold(
     request: RoadmapFoldRequest,
     session: AsyncSession = Depends(get_session),  # noqa: B008
     subject: AuthenticatedSubject = Depends(authenticated_subject),  # noqa: B008
+    _rate_limit: None = Depends(enforce_protected_rate_limit),  # noqa: B008
 ) -> RoadmapResponse:
     authorized_user_id = authorize_subject_scope(subject, user_id)
     if not request.confirm:
@@ -347,6 +376,7 @@ async def roadmap_action(
     request: RoadmapActionRequest,
     session: AsyncSession = Depends(get_session),  # noqa: B008
     subject: AuthenticatedSubject = Depends(authenticated_subject),  # noqa: B008
+    _rate_limit: None = Depends(enforce_protected_rate_limit),  # noqa: B008
 ) -> RoadmapResponse:
     authorized_user_id = authorize_subject_scope(subject, user_id)
     published = await get_persisted_module(session, phase_id)

@@ -33,6 +33,11 @@ class AuthenticationRequiredError(AppError):
         super().__init__(401, "authentication_required", "authentication required")
 
 
+class RateLimitExceededError(AppError):
+    def __init__(self) -> None:
+        super().__init__(429, "rate_limited", "too many requests; please retry later")
+
+
 class NotFoundError(AppError):
     def __init__(self, resource: str) -> None:
         super().__init__(404, "not_found", f"{resource} not found")
@@ -71,7 +76,8 @@ def _error_response(
     }
     if details is not None:
         body["error"]["details"] = details
-    return JSONResponse(status_code=status_code, content=body)
+    headers = {"Retry-After": "1"} if code == "rate_limited" else None
+    return JSONResponse(status_code=status_code, content=body, headers=headers)
 
 
 async def app_error_handler(request: Request, error: Exception) -> JSONResponse:

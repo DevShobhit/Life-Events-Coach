@@ -17,6 +17,8 @@ class Settings(BaseSettings):
         "postgresql+asyncpg://postgres:postgres@localhost:5432/lifecurriculum"
     )
     metrics_access_token: str | None = None
+    protected_rate_limit_requests: int = 60
+    protected_rate_limit_window_seconds: int = 60
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
