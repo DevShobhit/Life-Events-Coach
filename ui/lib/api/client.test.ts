@@ -140,6 +140,25 @@ describe("LifeCurriculumClient", () => {
     });
   });
 
+  test("maps rate limits to retryable safe recovery", async () => {
+    const client = new LifeCurriculumClient({
+      fetcher: async () =>
+        Response.json(
+          { error: { code: "rate_limited", request_id: "req-limit" } },
+          { status: 429, headers: { "Retry-After": "1" } },
+        ),
+    });
+
+    await expect(
+      client.roadmap("dev-user", "relocation"),
+    ).rejects.toMatchObject({
+      code: "rate_limited",
+      requestId: "req-limit",
+      status: 429,
+      message: "Too many requests right now. Please wait and retry.",
+    });
+  });
+
   test("rejects malformed roadmap data with safe typed error", async () => {
     const client = new LifeCurriculumClient({
       fetcher: async () =>

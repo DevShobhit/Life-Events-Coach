@@ -10,6 +10,7 @@ export const errorMessages = {
   invalid_response: "The service returned incomplete content. Please retry.",
   internal_error: "Something went wrong on our side. Please retry.",
   not_found: "That content is no longer available. Please refresh and retry.",
+  rate_limited: "Too many requests right now. Please wait and retry.",
   validation_error: "Some details need attention before we can continue.",
 } as const;
 
