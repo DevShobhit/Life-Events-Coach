@@ -33,6 +33,7 @@ from app.core.errors import (
     AppError,
     BadRequestError,
     ConflictError,
+    DependencyUnavailableError,
     GatewayTimeoutError,
     NotFoundError,
     RateLimitExceededError,
@@ -218,7 +219,19 @@ async def enforce_protected_rate_limit(request: Request) -> None:
         return
     client_host = request.client.host if request.client else "unknown"
     scope = hashlib.sha256(f"{client_host}:{family}".encode()).hexdigest()[:16]
-    if not protected_rate_limiter.allow(scope):
+    try:
+        allowed = protected_rate_limiter.allow(scope)
+    except Exception:
+        logger.warning(
+            "abuse.rate_limit_backend_failed",
+            route_family=family,
+            method=request.method,
+            exc_info=True,
+        )
+        raise DependencyUnavailableError(
+            "rate limiting is temporarily unavailable"
+        ) from None
+    if not allowed:
         logger.warning(
             "abuse.rate_limited",
             route_family=family,
