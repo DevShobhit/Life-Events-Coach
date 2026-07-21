@@ -6,6 +6,7 @@ from app.modules.phases.grounding import (
     GroundingSource,
     GroundingTimeout,
     InProcessGroundingProvider,
+    ResilientGroundingProvider,
     grounded_fallback,
     retrieve_sources,
 )
@@ -105,3 +106,37 @@ def test_grounding_timeout_is_typed_and_does_not_return_uncited_content() -> Non
                 timeout_seconds=0.001,
             )
         )
+
+
+class EmptyProvider(InProcessGroundingProvider):
+    async def retrieve(
+        self, module: PhaseModule, question: str, max_results: int
+    ) -> list[GroundingSource]:
+        return []
+
+
+class BrokenProvider(InProcessGroundingProvider):
+    async def retrieve(
+        self, module: PhaseModule, question: str, max_results: int
+    ) -> list[GroundingSource]:
+        raise RuntimeError("provider unavailable")
+
+
+def test_resilient_provider_falls_back_on_empty_results() -> None:
+    provider = ResilientGroundingProvider(
+        primary=EmptyProvider(), fallback=InProcessGroundingProvider()
+    )
+    result = asyncio.run(
+        provider.retrieve(module_fixture(), "visa conditions", max_results=3)
+    )
+    assert result[0].citation.id == "visa-citation"
+
+
+def test_resilient_provider_falls_back_on_provider_failure() -> None:
+    provider = ResilientGroundingProvider(
+        primary=BrokenProvider(), fallback=InProcessGroundingProvider()
+    )
+    result = asyncio.run(
+        provider.retrieve(module_fixture(), "visa conditions", max_results=3)
+    )
+    assert result[0].citation.id == "visa-citation"

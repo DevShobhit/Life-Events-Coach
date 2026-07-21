@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol
 
+import structlog
 from pydantic import BaseModel
 
 from app.modules.phases.schemas import Citation, PhaseModule
@@ -16,6 +17,9 @@ class GroundedMode(StrEnum):
 
 class GroundingTimeout(TimeoutError):
     pass
+
+
+logger = structlog.get_logger()
 
 
 @dataclass(frozen=True)
@@ -75,6 +79,52 @@ class InProcessGroundingProvider:
         self, module: PhaseModule, question: str, max_results: int
     ) -> list[GroundingSource]:
         return retrieve_sources(module, question=question, max_results=max_results)
+
+
+class ResilientGroundingProvider:
+    """Bound a primary retriever to a phase-approved local fallback."""
+
+    def __init__(
+        self,
+        *,
+        primary: GroundingProvider,
+        fallback: GroundingProvider,
+        timeout_seconds: float = 2.0,
+    ) -> None:
+        if timeout_seconds <= 0:
+            raise ValueError("grounding provider timeout must be positive")
+        self._primary = primary
+        self._fallback = fallback
+        self._timeout_seconds = timeout_seconds
+
+    async def retrieve(
+        self, module: PhaseModule, question: str, max_results: int
+    ) -> list[GroundingSource]:
+        try:
+            sources = await asyncio.wait_for(
+                self._primary.retrieve(module, question, max_results),
+                timeout=self._timeout_seconds,
+            )
+            if sources:
+                return sources
+            logger.info(
+                "grounding.primary.empty",
+                phase_id=module.phase_id,
+                max_results=max_results,
+            )
+        except TimeoutError:
+            logger.warning(
+                "grounding.primary.timeout",
+                phase_id=module.phase_id,
+                timeout_seconds=self._timeout_seconds,
+            )
+        except Exception:
+            logger.warning(
+                "grounding.primary.failed",
+                phase_id=module.phase_id,
+                exc_info=True,
+            )
+        return await self._fallback.retrieve(module, question, max_results)
 
 
 async def grounded_fallback(
