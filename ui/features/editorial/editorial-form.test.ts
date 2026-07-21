@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 
-import { updateEditorialConcern, updateEditorialMetadata } from "./editorial-form";
+import {
+  updateEditorialConcern,
+  updateEditorialMetadata,
+  updateEditorialThreshold,
+} from "./editorial-form";
 
 describe("editorial metadata editor", () => {
   test("updates display metadata without dropping module content", () => {
@@ -88,6 +92,44 @@ describe("editorial metadata editor", () => {
       expect.objectContaining({
         card: { body: "new" },
         citation: { reviewed_on: "2026-07-21" },
+      }),
+    );
+  });
+
+  test("updates citation identity and threshold values without dropping content", () => {
+    const module = {
+      schema_version: "1.0",
+      phase_id: "relocation",
+      onboarding_fields: [],
+      source_policy: [],
+      thresholds: { freshness_days: 30 },
+      concerns: [
+        {
+          id: "housing",
+          title: "Housing",
+          bullets: [],
+          why_now: "now",
+          citation: { title: "Old", url: "https://old.test", source_type: "web" },
+        },
+      ],
+    } as never;
+
+    const withCitation = updateEditorialConcern(
+      module,
+      "housing",
+      "citation.url",
+      "https://new.test",
+    );
+    const updated = updateEditorialThreshold(
+      withCitation,
+      "horizon_days",
+      "60",
+    );
+
+    expect(updated).toEqual(
+      expect.objectContaining({
+        thresholds: { freshness_days: 30, horizon_days: 60 },
+        concerns: [expect.objectContaining({ citation: expect.objectContaining({ url: "https://new.test" }) })],
       }),
     );
   });

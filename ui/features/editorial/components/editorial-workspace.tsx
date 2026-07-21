@@ -8,8 +8,10 @@ import { ApiError } from "@/lib/api/errors";
 import {
   updateEditorialConcern,
   updateEditorialMetadata,
+  updateEditorialThreshold,
   type EditorialConcernField,
   type EditorialMetadataField,
+  type EditorialThresholdField,
 } from "@/features/editorial/editorial-form";
 import type {
   EditorialDraft,
@@ -95,6 +97,13 @@ export function EditorialWorkspace() {
       field,
       value,
     );
+    setDraft({ ...draft, module: nextModule });
+    setEditorText(JSON.stringify(nextModule, null, 2));
+  }
+
+  function updateThreshold(field: EditorialThresholdField, value: string) {
+    if (!draft) return;
+    const nextModule = updateEditorialThreshold(draft.module, field, value);
     setDraft({ ...draft, module: nextModule });
     setEditorText(JSON.stringify(nextModule, null, 2));
   }
@@ -467,9 +476,65 @@ export function EditorialWorkspace() {
                           value={concern.citation.reviewed_on}
                         />
                       </label>
+                      <label className="grid gap-1 text-sm">
+                        Citation title
+                        <input
+                          aria-label={`${concern.id} citation title`}
+                          className="h-10 rounded-md border border-border bg-background px-3"
+                          onChange={(event) =>
+                            updateConcern(concern.id, "citation.title", event.target.value)
+                          }
+                          value={concern.citation.title}
+                        />
+                      </label>
+                      <label className="grid gap-1 text-sm">
+                        Citation URL
+                        <input
+                          aria-label={`${concern.id} citation URL`}
+                          className="h-10 rounded-md border border-border bg-background px-3"
+                          onChange={(event) =>
+                            updateConcern(concern.id, "citation.url", event.target.value)
+                          }
+                          type="url"
+                          value={concern.citation.url}
+                        />
+                      </label>
+                      <label className="grid gap-1 text-sm">
+                        Citation source type
+                        <input
+                          aria-label={`${concern.id} citation source type`}
+                          className="h-10 rounded-md border border-border bg-background px-3"
+                          onChange={(event) =>
+                            updateConcern(concern.id, "citation.source_type", event.target.value)
+                          }
+                          value={concern.citation.source_type}
+                        />
+                      </label>
                     </div>
                   ))
                 )}
+              </fieldset>
+              <fieldset className="grid gap-3 rounded-md border border-border p-4 sm:grid-cols-3">
+                <legend className="px-1 text-sm font-medium">Roadmap thresholds</legend>
+                {(
+                  [
+                    ["freshness_days", "Freshness days"],
+                    ["now_window_days", "Now window days"],
+                    ["horizon_days", "Horizon days"],
+                  ] as const
+                ).map(([field, label]) => (
+                  <label className="grid gap-1 text-sm" key={field}>
+                    {label}
+                    <input
+                      aria-label={label}
+                      className="h-10 rounded-md border border-border bg-background px-3"
+                      min="0"
+                      onChange={(event) => updateThreshold(field, event.target.value)}
+                      type="number"
+                      value={draft.module.thresholds?.[field] ?? ""}
+                    />
+                  </label>
+                ))}
               </fieldset>
               <label className="grid gap-2 text-sm">
                 Module JSON

@@ -26,7 +26,10 @@ export type EditorialConcernField =
   | "urgency"
   | "horizon_days"
   | "card.body"
-  | "citation.reviewed_on";
+  | "citation.reviewed_on"
+  | "citation.title"
+  | "citation.url"
+  | "citation.source_type";
 
 export function updateEditorialConcern(
   module: PhaseModule,
@@ -41,8 +44,12 @@ export function updateEditorialConcern(
       if (field === "card.body") {
         return { ...concern, card: { ...concern.card, body: value } };
       }
-      if (field === "citation.reviewed_on") {
-        return { ...concern, citation: { ...concern.citation, reviewed_on: value } };
+      if (field.startsWith("citation.")) {
+        const citationField = field.slice("citation.".length) as keyof EditorialConcern["citation"];
+        return {
+          ...concern,
+          citation: { ...concern.citation, [citationField]: value },
+        };
       }
       const nextValue = field === "bullets"
         ? value.split("\n").map((item) => item.trim()).filter(Boolean)
@@ -51,5 +58,24 @@ export function updateEditorialConcern(
           : value;
       return { ...concern, [field]: nextValue } as EditorialConcern;
     }),
+  };
+}
+
+export type EditorialThresholdField =
+  | "freshness_days"
+  | "now_window_days"
+  | "horizon_days";
+
+export function updateEditorialThreshold(
+  module: PhaseModule,
+  field: EditorialThresholdField,
+  value: string,
+): PhaseModule {
+  return {
+    ...module,
+    thresholds: {
+      ...module.thresholds,
+      [field]: Number(value),
+    },
   };
 }
