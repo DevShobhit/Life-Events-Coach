@@ -42,7 +42,11 @@ from app.core.errors import (
     validation_error_handler,
 )
 from app.core.logging import configure_logging
-from app.core.rate_limit import configured_rate_limiter, route_family
+from app.core.rate_limit import (
+    RedisSlidingWindowRateLimiter,
+    configured_rate_limiter,
+    route_family,
+)
 from app.core.settings import get_settings
 from app.core.telemetry import configure_tracing, instrument_fastapi
 from app.modules.account.data_lifecycle import (
@@ -623,7 +627,15 @@ async def ready_health(
         return JSONResponse(
             status_code=503,
             content={"status": "unready", "service": "lifecurriculum-api"},
-        )
+            )
+    if isinstance(protected_rate_limiter, RedisSlidingWindowRateLimiter):
+        redis_ready = await asyncio.to_thread(protected_rate_limiter.healthcheck)
+        if not redis_ready:
+            logger.warning("application.readiness.rate_limit_backend_failed")
+            return JSONResponse(
+                status_code=503,
+                content={"status": "unready", "service": "lifecurriculum-api"},
+            )
     return JSONResponse(
         status_code=200,
         content={"status": "ok", "service": "lifecurriculum-api"},

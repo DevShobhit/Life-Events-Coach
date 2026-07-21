@@ -10,6 +10,8 @@ from app.core.settings import Settings
 class RedisEvalClient(Protocol):
     def eval(self, script: str, numkeys: int, *args: object) -> int: ...
 
+    def ping(self) -> bool: ...
+
 
 _REDIS_SLIDING_WINDOW_SCRIPT = """
 local current = redis.call('INCR', KEYS[1])
@@ -87,6 +89,12 @@ class RedisSlidingWindowRateLimiter:
                 return True
             raise
         return bool(result)
+
+    def healthcheck(self) -> bool:
+        try:
+            return bool(self._redis.ping())
+        except Exception:
+            return False
 
 
 def configured_rate_limiter(
