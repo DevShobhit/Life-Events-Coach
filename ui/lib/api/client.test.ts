@@ -1,9 +1,16 @@
 import { describe, expect, test } from "bun:test";
 
-import { LifeCurriculumClient } from "./client";
+import { apiOriginForDiagnostics, LifeCurriculumClient } from "./client";
 import { ApiError } from "./errors";
 
 describe("LifeCurriculumClient", () => {
+  test("redacts API diagnostics to the origin", () => {
+    expect(
+      apiOriginForDiagnostics("https://api.example.test/private?token=secret"),
+    ).toBe("https://api.example.test");
+    expect(apiOriginForDiagnostics("not-a-url")).toBe("invalid-origin");
+  });
+
   test("loads only active enrollments for phase switching", async () => {
     const requests: Request[] = [];
     const client = new LifeCurriculumClient({

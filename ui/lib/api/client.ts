@@ -1,5 +1,5 @@
 import { appConfig } from "@/lib/config/app-config";
-import { apiLogger } from "@/lib/logging/logger";
+import { apiLogger, isDevelopment } from "@/lib/logging/logger";
 import { useSessionStore } from "@/lib/state/session";
 import { ApiError } from "./errors";
 import type {
@@ -31,6 +31,24 @@ type RequestOptions = Omit<RequestInit, "body"> & {
   editorialRole?: "editor" | "publisher" | "admin";
 };
 
+const loggedApiOrigins = new Set<string>();
+
+export function apiOriginForDiagnostics(baseUrl: string): string {
+  try {
+    return new URL(baseUrl).origin;
+  } catch {
+    return "invalid-origin";
+  }
+}
+
+function logConfiguredApiOrigin(baseUrl: string) {
+  if (!isDevelopment) return;
+  const origin = apiOriginForDiagnostics(baseUrl);
+  if (loggedApiOrigins.has(origin)) return;
+  loggedApiOrigins.add(origin);
+  apiLogger.debug("api_origin_configured", { origin });
+}
+
 export class LifeCurriculumClient {
   private readonly baseUrl: string;
   private readonly fetcher: typeof fetch;
@@ -38,6 +56,7 @@ export class LifeCurriculumClient {
 
   constructor(options: ClientOptions = {}) {
     this.baseUrl = options.baseUrl ?? appConfig.apiUrl;
+    logConfiguredApiOrigin(this.baseUrl);
     this.getAccessToken =
       options.getAccessToken ?? (() => useSessionStore.getState().accessToken);
     const fetchImplementation = options.fetcher ?? globalThis.fetch;
