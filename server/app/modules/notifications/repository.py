@@ -16,9 +16,7 @@ class NotificationIntentRepository:
 
     async def enqueue(self, intent: NotificationIntent) -> NotificationIntentRecord:
         async with session_transaction(self._session):
-            record = await self._session.get(
-                NotificationIntentRecord, intent.dedupe_key
-            )
+            record = await self._session.get(NotificationIntentRecord, intent.dedupe_key)
             if record is None:
                 record = NotificationIntentRecord(
                     dedupe_key=intent.dedupe_key,

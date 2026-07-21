@@ -151,7 +151,9 @@ def test_identity_provider_settings_support_clerk_and_firebase() -> None:
 
 
 @pytest.mark.anyio
-async def test_jwks_provider_validates_signature_and_claims(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_jwks_provider_validates_signature_and_claims(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     public_jwk = jwt.algorithms.RSAAlgorithm.to_jwk(private_key.public_key())
     provider = JWKSIdentityProvider(
@@ -165,7 +167,12 @@ async def test_jwks_provider_validates_signature_and_claims(monkeypatch: pytest.
         lambda: _async_value({"key-1": {**json.loads(public_jwk), "kid": "key-1"}}),
     )
     token = jwt.encode(
-        {"sub": "user-123", "iss": "https://issuer.example", "aud": "api", "exp": datetime.now(UTC) + timedelta(minutes=5)},
+        {
+            "sub": "user-123",
+            "iss": "https://issuer.example",
+            "aud": "api",
+            "exp": datetime.now(UTC) + timedelta(minutes=5),
+        },
         private_key,
         algorithm="RS256",
         headers={"kid": "key-1"},
@@ -187,7 +194,12 @@ async def test_jwks_provider_rejects_unknown_key(monkeypatch: pytest.MonkeyPatch
         lambda: _async_value({"known": {**public_jwk, "kid": "known"}}),
     )
     token = jwt.encode(
-        {"sub": "user-123", "iss": "wrong", "aud": "api", "exp": datetime.now(UTC) + timedelta(minutes=5)},
+        {
+            "sub": "user-123",
+            "iss": "wrong",
+            "aud": "api",
+            "exp": datetime.now(UTC) + timedelta(minutes=5),
+        },
         private_key,
         algorithm="RS256",
         headers={"kid": "unknown"},
