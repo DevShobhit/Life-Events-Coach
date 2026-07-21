@@ -4,6 +4,34 @@ import { LifeCurriculumClient } from "./client";
 import { ApiError } from "./errors";
 
 describe("LifeCurriculumClient", () => {
+  test("loads only active enrollments for phase switching", async () => {
+    const requests: Request[] = [];
+    const client = new LifeCurriculumClient({
+      baseUrl: "https://api.example.test",
+      fetcher: async (input, init) => {
+        requests.push(new Request(input, init));
+        return Response.json([
+          {
+            user_id: "local-dev-user",
+            phase_id: "relocation",
+            context: { relocation_stage: "arrived" },
+            progress_anchor: "2026-07-21",
+            status: "active",
+            completed_at: null,
+            archived_at: null,
+          },
+        ]);
+      },
+    });
+
+    await client.activeEnrollments("local-dev-user");
+
+    expect(requests[0]?.url).toBe(
+      "https://api.example.test/enrollment/local-dev-user",
+    );
+    expect(requests[0]?.headers.get("X-User-ID")).toBe("local-dev-user");
+  });
+
   test("loads editorial versions and freshness for the selected phase", async () => {
     const requests: Request[] = [];
     const client = new LifeCurriculumClient({

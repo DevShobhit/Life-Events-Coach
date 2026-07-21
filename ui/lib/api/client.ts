@@ -45,6 +45,13 @@ export class LifeCurriculumClient {
     return this.request<PublishedPhaseModule[]>("/phases", { signal });
   }
 
+  activeEnrollments(userId: string, signal?: AbortSignal) {
+    return this.request<Enrollment[]>(
+      `/enrollment/${encodeURIComponent(userId)}`,
+      { userId, signal },
+    );
+  }
+
   editorialVersions(
     phaseId: string,
     role: "editor" | "publisher" | "admin",

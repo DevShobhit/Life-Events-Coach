@@ -51,6 +51,30 @@ class EnrollmentRepository:
             else None
         )
 
+    async def active(self, user_id: str) -> list[Enrollment]:
+        result = await self._session.execute(
+            select(PhaseEnrollment)
+            .where(
+                PhaseEnrollment.user_id == user_id,
+                PhaseEnrollment.status == "active",
+            )
+            .order_by(PhaseEnrollment.phase_id)
+        )
+        return [
+            Enrollment.model_validate(
+                {
+                    "user_id": record.user_id,
+                    "phase_id": record.phase_id,
+                    "context": record.context,
+                    "progress_anchor": record.progress_anchor,
+                    "status": record.status,
+                    "completed_at": record.completed_at,
+                    "archived_at": record.archived_at,
+                }
+            )
+            for record in result.scalars()
+        ]
+
     async def transition(
         self, user_id: str, phase_id: str, event: str
     ) -> Enrollment:

@@ -723,6 +723,21 @@ async def save_notification_preferences(
 
 
 @app.get(
+    "/enrollment/{user_id}",
+    response_model=list[Enrollment],
+    tags=["enrollment"],
+)
+async def active_enrollments(
+    user_id: str,
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    subject: AuthenticatedSubject = Depends(authenticated_subject),  # noqa: B008
+    _rate_limit: None = Depends(enforce_protected_rate_limit),  # noqa: B008
+) -> list[Enrollment]:
+    authorized_user_id = authorize_subject_scope(subject, user_id)
+    return await EnrollmentRepository(session).active(authorized_user_id)
+
+
+@app.get(
     "/enrollment/{user_id}/history",
     response_model=list[EnrollmentLifecycleEvent],
     tags=["enrollment"],
