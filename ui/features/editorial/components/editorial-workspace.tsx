@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/errors";
 import type {
   EditorialDraft,
   EditorialFreshness,
@@ -25,6 +26,7 @@ export function EditorialWorkspace() {
   const [versions, setVersions] = useState<EditorialVersion[]>([]);
   const [freshness, setFreshness] = useState<EditorialFreshness | null>(null);
   const [editorText, setEditorText] = useState("");
+  const [previewText, setPreviewText] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -64,6 +66,7 @@ export function EditorialWorkspace() {
   function selectDraft(next: EditorialDraft) {
     setDraft(next);
     setEditorText(JSON.stringify(next.module, null, 2));
+    setPreviewText(null);
     setMessage(null);
   }
 
@@ -111,7 +114,32 @@ export function EditorialWorkspace() {
       setMessage(
         error instanceof SyntaxError
           ? "Draft JSON is invalid."
+          : error instanceof ApiError && error.code === "conflict"
+            ? "This draft changed elsewhere. Reload it before saving again."
           : "Draft could not be saved.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function previewDraft() {
+    if (!draft) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const result = await apiClient.editorialPreview(
+        phaseId,
+        draft.draft_id,
+        role,
+      );
+      setPreviewText(JSON.stringify(result.module, null, 2));
+      setMessage("Preview generated from the saved draft.");
+    } catch (error) {
+      setMessage(
+        error instanceof ApiError && error.code === "conflict"
+          ? "Preview is out of date. Reload the draft and try again."
+          : "Preview could not be generated. Please retry.",
       );
     } finally {
       setBusy(false);
@@ -260,6 +288,14 @@ export function EditorialWorkspace() {
                   >
                     Validate
                   </Button>
+                  <Button
+                    disabled={busy}
+                    onClick={() => void previewDraft()}
+                    type="button"
+                    variant="outline"
+                  >
+                    Preview
+                  </Button>
                   {role === "publisher" || role === "admin" ? (
                     <Button
                       disabled={busy || draft.status === "published"}
@@ -280,6 +316,17 @@ export function EditorialWorkspace() {
                   onChange={(event) => setEditorText(event.target.value)}
                 />
               </label>
+              {previewText ? (
+                <label className="grid gap-2 text-sm">
+                  Saved preview
+                  <textarea
+                    aria-label="Saved draft preview"
+                    className="min-h-[18rem] rounded-md border border-border bg-muted/30 p-3 font-mono text-xs"
+                    readOnly
+                    value={previewText}
+                  />
+                </label>
+              ) : null}
             </>
           ) : (
             <p className="rounded-md border border-dashed border-border p-8 text-sm text-muted-foreground">

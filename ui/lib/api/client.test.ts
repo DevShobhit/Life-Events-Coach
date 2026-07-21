@@ -32,10 +32,14 @@ describe("LifeCurriculumClient", () => {
 
     await client.editorialVersions("relocation", "editor");
     await client.editorialFreshness("relocation");
+    await client.editorialPreview("relocation", "draft-1", "editor");
 
     expect(requests[0]?.url).toContain("/editorial/phases/relocation/versions");
     expect(requests[0]?.headers.get("X-User-Role")).toBe("editor");
     expect(requests[1]?.url).toContain("/editorial/freshness/relocation");
+    expect(requests[2]?.url).toContain(
+      "/editorial/phases/relocation/drafts/draft-1/preview",
+    );
   });
 
   test("uses role-scoped editorial draft and publish endpoints", async () => {
