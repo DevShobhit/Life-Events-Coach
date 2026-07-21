@@ -21,6 +21,7 @@ def test_migration_files_are_ordered_sql_files() -> None:
         "006_phase_lifecycle.sql",
         "007_editorial_drafts.sql",
         "008_editorial_publication_idempotency.sql",
+        "009_notification_intents.sql",
     ]
 
 
