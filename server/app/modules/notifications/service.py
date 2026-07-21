@@ -6,14 +6,20 @@ from datetime import datetime
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.notifications.preferences import NotificationPreferenceRepository
+from app.modules.notifications.preferences import (
+    NotificationPreference,
+    NotificationPreferenceRepository,
+)
 from app.modules.notifications.repository import NotificationIntentRepository
-from app.modules.notifications.scheduler import build_daily_intent
+from app.modules.notifications.scheduler import build_daily_intent, local_date
+from app.modules.notifications.work_repository import NotificationWorkRepository
 
 logger = structlog.get_logger()
 
 PhaseIdsResolver = Callable[[str], Iterable[str] | Awaitable[Iterable[str]]]
-CompletionResolver = Callable[[str], bool | Awaitable[bool]]
+CompletionResolver = Callable[
+    [NotificationPreference], bool | Awaitable[bool]
+]
 
 
 @dataclass(frozen=True)
@@ -28,6 +34,18 @@ class NotificationSchedulingService:
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+
+    async def schedule_due_from_repository(
+        self, *, now: datetime
+    ) -> NotificationScheduleReport:
+        work = NotificationWorkRepository(self._session)
+        return await self.schedule_due(
+            now=now,
+            phase_ids_for_user=work.active_phase_ids,
+            completed_today_for_user=lambda preference: work.completed_today(
+                preference.user_id, local_date(now, preference.timezone)
+            ),
+        )
 
     async def schedule_due(
         self,
@@ -46,7 +64,7 @@ class NotificationSchedulingService:
             phase_ids = phase_ids_for_user(preference.user_id)
             if inspect.isawaitable(phase_ids):
                 phase_ids = await phase_ids
-            completed_today = completed_today_for_user(preference.user_id)
+            completed_today = completed_today_for_user(preference)
             if inspect.isawaitable(completed_today):
                 completed_today = await completed_today
             intent = build_daily_intent(

@@ -33,7 +33,7 @@ async def test_scheduler_enqueues_one_consolidated_intent_for_due_preference(ses
     report = await service.schedule_due(
         now=datetime(2026, 7, 21, 9, tzinfo=UTC),
         phase_ids_for_user=lambda user_id: ["phase-b", "phase-a"],
-        completed_today_for_user=lambda user_id: False,
+        completed_today_for_user=lambda preference: False,
     )
 
     assert report.scheduled == 1
@@ -51,7 +51,7 @@ async def test_scheduler_skips_disabled_and_completed_preferences(session):
     report = await service.schedule_due(
         now=datetime(2026, 7, 21, 9, tzinfo=UTC),
         phase_ids_for_user=lambda user_id: ["phase-a"],
-        completed_today_for_user=lambda user_id: user_id == "completed",
+        completed_today_for_user=lambda preference: preference.user_id == "completed",
     )
 
     assert report.scheduled == 0
