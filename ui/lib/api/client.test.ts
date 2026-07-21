@@ -115,6 +115,31 @@ describe("LifeCurriculumClient", () => {
     );
   });
 
+  test("maps authentication-required responses to safe session recovery", async () => {
+    const client = new LifeCurriculumClient({
+      fetcher: async () =>
+        Response.json(
+          {
+            error: {
+              code: "authentication_required",
+              message: "internal auth details",
+              request_id: "req-auth",
+            },
+          },
+          { status: 401 },
+        ),
+    });
+
+    await expect(
+      client.roadmap("dev-user", "relocation"),
+    ).rejects.toMatchObject({
+      code: "authentication_required",
+      requestId: "req-auth",
+      status: 401,
+      message: "Your session has expired. Please sign in again.",
+    });
+  });
+
   test("rejects malformed roadmap data with safe typed error", async () => {
     const client = new LifeCurriculumClient({
       fetcher: async () =>

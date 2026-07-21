@@ -1,4 +1,5 @@
 export const errorMessages = {
+  authentication_required: "Your session has expired. Please sign in again.",
   bad_request: "That request needs a small correction. Please try again.",
   dependency_unavailable:
     "This content is temporarily unavailable. Please retry.",
