@@ -121,6 +121,14 @@ export type Enrollment = {
   phase_id: string;
   context: Record<string, string>;
   progress_anchor: string;
+  status: "active" | "completed" | "archived";
+  completed_at: string | null;
+  archived_at: string | null;
+};
+
+export type EnrollmentLifecycleEvent = {
+  event: "completed" | "archived";
+  occurred_at: string;
 };
 
 export type NotificationPreference = {

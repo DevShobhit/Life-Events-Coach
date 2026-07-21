@@ -5,6 +5,7 @@ import type {
   AskResponse,
   CardAction,
   Enrollment,
+  EnrollmentLifecycleEvent,
   NotificationPreference,
   PublishedPhaseModule,
   RoadmapResponse,
@@ -115,6 +116,27 @@ export class LifeCurriculumClient {
   enrollment(userId: string, phaseId: string, signal?: AbortSignal) {
     return this.request<Enrollment>(
       `/enrollment/${encodeURIComponent(userId)}/${encodeURIComponent(phaseId)}`,
+      { userId, signal },
+    );
+  }
+
+  completeEnrollment(userId: string, phaseId: string) {
+    return this.request<Enrollment>(
+      `/enrollment/${encodeURIComponent(userId)}/${encodeURIComponent(phaseId)}/complete`,
+      { userId, method: "POST" },
+    );
+  }
+
+  archiveEnrollment(userId: string, phaseId: string) {
+    return this.request<Enrollment>(
+      `/enrollment/${encodeURIComponent(userId)}/${encodeURIComponent(phaseId)}/archive`,
+      { userId, method: "POST" },
+    );
+  }
+
+  enrollmentHistory(userId: string, signal?: AbortSignal) {
+    return this.request<EnrollmentLifecycleEvent[]>(
+      `/enrollment/${encodeURIComponent(userId)}/history`,
       { userId, signal },
     );
   }

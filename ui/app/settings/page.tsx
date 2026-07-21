@@ -1,6 +1,7 @@
 "use client";
 
 import { ContextSettings } from "@/features/enrollment/components/context-settings";
+import { PhaseLifecycleSettings } from "@/features/enrollment/components/phase-lifecycle-settings";
 import { NotificationSettings } from "@/features/notifications/components/notification-settings";
 import { useSessionStore } from "@/lib/state/session";
 
@@ -39,6 +40,23 @@ export default function SettingsPage() {
           </p>
         </div>
         <ContextSettings phaseId={activePhase} userId={developmentUserId} />
+      </section>
+      <section
+        className="space-y-4 rounded-lg border border-border bg-card p-5"
+        aria-labelledby="lifecycle-heading"
+      >
+        <div>
+          <h2 className="font-medium" id="lifecycle-heading">
+            Phase lifecycle
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Finish or archive this phase when your circumstances change.
+          </p>
+        </div>
+        <PhaseLifecycleSettings
+          phaseId={activePhase}
+          userId={developmentUserId}
+        />
       </section>
       <section
         className="space-y-4 rounded-lg border border-border bg-card p-5"

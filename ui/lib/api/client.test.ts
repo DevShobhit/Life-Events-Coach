@@ -66,6 +66,39 @@ describe("LifeCurriculumClient", () => {
     });
   });
 
+  test("uses explicit enrollment lifecycle endpoints and history", async () => {
+    const requests: Request[] = [];
+    const client = new LifeCurriculumClient({
+      baseUrl: "https://api.example.test",
+      fetcher: async (input, init) => {
+        requests.push(new Request(input, init));
+        if (String(input).endsWith("/history")) return Response.json([]);
+        return Response.json({
+          user_id: "dev-user",
+          phase_id: "relocation",
+          context: {},
+          progress_anchor: "2026-07-21",
+          status: "completed",
+          completed_at: "2026-07-21T09:00:00Z",
+          archived_at: null,
+        });
+      },
+    });
+
+    await client.completeEnrollment("dev-user", "relocation");
+    await client.archiveEnrollment("dev-user", "relocation");
+    await client.enrollmentHistory("dev-user");
+
+    expect(requests.map((request) => request.method)).toEqual([
+      "POST",
+      "POST",
+      "GET",
+    ]);
+    expect(requests[0]?.url).toContain("/complete");
+    expect(requests[1]?.url).toContain("/archive");
+    expect(requests[2]?.url).toContain("/history");
+  });
+
   test("sends scoped roadmap requests with a request id", async () => {
     const requests: Request[] = [];
     const client = new LifeCurriculumClient({
