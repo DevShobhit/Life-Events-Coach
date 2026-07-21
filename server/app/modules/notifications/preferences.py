@@ -3,6 +3,7 @@ from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.phases.orm_models import NotificationPreferenceRecord
@@ -41,6 +42,14 @@ class NotificationPreferenceRepository:
     async def get(self, user_id: str) -> NotificationPreference | None:
         record = await self._session.get(NotificationPreferenceRecord, user_id)
         return self._to_schema(record) if record is not None else None
+
+    async def list_enabled(self) -> list[NotificationPreference]:
+        result = await self._session.execute(
+            select(NotificationPreferenceRecord)
+            .where(NotificationPreferenceRecord.enabled.is_(True))
+            .order_by(NotificationPreferenceRecord.user_id)
+        )
+        return [self._to_schema(record) for record in result.scalars().all()]
 
     async def upsert(
         self, user_id: str, update: NotificationPreferenceUpdate
