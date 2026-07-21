@@ -68,6 +68,7 @@ from app.modules.phases.catalog import (
 )
 from app.modules.phases.editorial import (
     active_version,
+    active_version_for_update,
     create_draft,
     get_draft,
     get_publication_replay,
@@ -398,7 +399,7 @@ async def editorial_publish_draft(
         if replay.phase_id != phase_id or replay.draft_id != draft_id:
             raise ConflictError("idempotency key is already used for another publication")
         return replay.response
-    current_active = await active_version(session, phase_id)
+    current_active = await active_version_for_update(session, phase_id)
     if payload.expected_active_version is not None and payload.expected_active_version != (current_active or 0):
         raise ConflictError("active phase version is stale")
     report = await validate_draft(session, draft, production=get_settings().app_env == "production")

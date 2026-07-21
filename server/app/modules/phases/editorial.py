@@ -22,6 +22,24 @@ async def active_version(session: AsyncSession, phase_id: str) -> int | None:
     return active.version if active else None
 
 
+def active_version_lock_statement(phase_id: str):
+    """Build the PostgreSQL row-lock query used during publication."""
+
+    return (
+        select(PhaseModuleActive)
+        .where(PhaseModuleActive.phase_id == phase_id)
+        .with_for_update()
+    )
+
+
+async def active_version_for_update(
+    session: AsyncSession, phase_id: str
+) -> int | None:
+    result = await session.execute(active_version_lock_statement(phase_id))
+    active = result.scalar_one_or_none()
+    return active.version if active is not None else None
+
+
 async def create_draft(
     session: AsyncSession, *, phase_id: str, content: dict[str, Any], actor_id: str
 ) -> PhaseModuleDraft:
