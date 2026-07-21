@@ -1,5 +1,6 @@
 import { appConfig } from "@/lib/config/app-config";
 import { apiLogger } from "@/lib/logging/logger";
+import { useSessionStore } from "@/lib/state/session";
 import { ApiError } from "./errors";
 import type {
   AccountDataExport,
@@ -21,6 +22,7 @@ import { isRoadmapResponse } from "./types";
 type ClientOptions = {
   baseUrl?: string;
   fetcher?: typeof fetch;
+  getAccessToken?: () => string | null | Promise<string | null>;
 };
 
 type RequestOptions = Omit<RequestInit, "body"> & {
@@ -32,9 +34,12 @@ type RequestOptions = Omit<RequestInit, "body"> & {
 export class LifeCurriculumClient {
   private readonly baseUrl: string;
   private readonly fetcher: typeof fetch;
+  private readonly getAccessToken: () => string | null | Promise<string | null>;
 
   constructor(options: ClientOptions = {}) {
     this.baseUrl = options.baseUrl ?? appConfig.apiUrl;
+    this.getAccessToken =
+      options.getAccessToken ?? (() => useSessionStore.getState().accessToken);
     const fetchImplementation = options.fetcher ?? globalThis.fetch;
     const fetchReceiver = typeof window === "undefined" ? globalThis : window;
     this.fetcher = (input, init) =>
@@ -345,13 +350,18 @@ export class LifeCurriculumClient {
     });
     let response: Response;
     try {
+      const accessToken = await this.getAccessToken();
       response = await this.fetcher(`${this.baseUrl}${path}`, {
         ...requestInit,
         body: requestInit.body ? JSON.stringify(requestInit.body) : undefined,
         headers: {
           "Content-Type": "application/json",
           "X-Request-ID": requestId,
-          ...(userId ? { "X-User-ID": userId } : {}),
+          ...(accessToken
+            ? { Authorization: `Bearer ${accessToken}` }
+            : userId
+              ? { "X-User-ID": userId }
+              : {}),
           ...(editorialRole ? { "X-User-Role": editorialRole } : {}),
           ...requestInit.headers,
         },

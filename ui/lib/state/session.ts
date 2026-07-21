@@ -6,10 +6,17 @@ type SessionState = {
   activeStage: string;
   phaseStages: Record<string, string>;
   developmentUserId: string;
+  authenticatedUserId: string | null;
+  accessToken: string | null;
   reducedMotion: boolean;
   setActivePhase: (phaseId: string) => void;
   setActiveStage: (stage: string) => void;
   setDevelopmentUserId: (userId: string) => void;
+  setAuthenticatedSession: (session: {
+    userId: string;
+    accessToken: string;
+  }) => void;
+  clearAuthenticatedSession: () => void;
   setReducedMotion: (enabled: boolean) => void;
 };
 
@@ -19,6 +26,8 @@ export const useSessionStore = create<SessionState>()(
       activePhase: "relocation",
       activeStage: "arrived",
       developmentUserId: "local-dev-user",
+      authenticatedUserId: null,
+      accessToken: null,
       reducedMotion: false,
       phaseStages: { relocation: "arrived" },
       setActivePhase: (activePhase) =>
@@ -35,6 +44,10 @@ export const useSessionStore = create<SessionState>()(
           },
         })),
       setDevelopmentUserId: (developmentUserId) => set({ developmentUserId }),
+      setAuthenticatedSession: ({ userId, accessToken }) =>
+        set({ authenticatedUserId: userId, accessToken }),
+      clearAuthenticatedSession: () =>
+        set({ authenticatedUserId: null, accessToken: null }),
       setReducedMotion: (reducedMotion) => set({ reducedMotion }),
     }),
     {

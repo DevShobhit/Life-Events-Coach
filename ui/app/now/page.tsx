@@ -28,7 +28,9 @@ import {
 } from "@/lib/ux/feedback";
 
 export default function NowPage() {
-  const userId = useSessionStore((state) => state.developmentUserId);
+  const userId = useSessionStore(
+    (state) => state.authenticatedUserId ?? state.developmentUserId,
+  );
   const phaseId = useSessionStore((state) => state.activePhase);
   const stage = useSessionStore((state) => state.activeStage);
   const query = useRoadmapQuery(userId, phaseId, stage);

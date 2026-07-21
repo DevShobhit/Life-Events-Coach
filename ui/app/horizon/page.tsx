@@ -43,7 +43,9 @@ import {
 } from "@/lib/ux/feedback";
 
 export default function HorizonPage() {
-  const userId = useSessionStore((state) => state.developmentUserId);
+  const userId = useSessionStore(
+    (state) => state.authenticatedUserId ?? state.developmentUserId,
+  );
   const phaseId = useSessionStore((state) => state.activePhase);
   const stage = useSessionStore((state) => state.activeStage);
   const mutation = useRoadmapActionMutation(userId, phaseId, stage);

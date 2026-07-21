@@ -32,6 +32,23 @@ describe("LifeCurriculumClient", () => {
     expect(requests[0]?.headers.get("X-User-ID")).toBe("local-dev-user");
   });
 
+  test("uses bearer credentials for provider-backed requests", async () => {
+    let request: Request | undefined;
+    const client = new LifeCurriculumClient({
+      baseUrl: "https://api.example.test",
+      getAccessToken: () => "signed-token",
+      fetcher: async (input, init) => {
+        request = new Request(input, init);
+        return Response.json([]);
+      },
+    });
+
+    await client.activeEnrollments("provider-subject");
+
+    expect(request?.headers.get("Authorization")).toBe("Bearer signed-token");
+    expect(request?.headers.get("X-User-ID")).toBeNull();
+  });
+
   test("loads editorial versions and freshness for the selected phase", async () => {
     const requests: Request[] = [];
     const client = new LifeCurriculumClient({
