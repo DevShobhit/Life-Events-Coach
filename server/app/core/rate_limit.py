@@ -20,10 +20,14 @@ class SlidingWindowRateLimiter:
 
     def allow(self, scope: str) -> bool:
         now = self._clock()
-        requests = self._requests[scope]
         cutoff = now - self.window_seconds
-        while requests and requests[0] <= cutoff:
-            requests.popleft()
+        for existing_scope, existing_requests in list(self._requests.items()):
+            while existing_requests and existing_requests[0] <= cutoff:
+                existing_requests.popleft()
+            if not existing_requests:
+                del self._requests[existing_scope]
+
+        requests = self._requests.setdefault(scope, deque())
         if len(requests) >= self.max_requests:
             return False
         requests.append(now)

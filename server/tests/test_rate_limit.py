@@ -17,6 +17,20 @@ def test_sliding_window_allows_configured_requests_then_rejects_until_expiry() -
     assert limiter.allow("network-a") is True
 
 
+def test_sliding_window_removes_expired_scope_state() -> None:
+    now = [100.0]
+    limiter = SlidingWindowRateLimiter(
+        max_requests=1, window_seconds=10, clock=lambda: now[0]
+    )
+
+    assert limiter.allow("ephemeral-network") is True
+    assert "ephemeral-network" in limiter._requests
+
+    now[0] = 110.01
+    assert limiter.allow("other-network") is True
+    assert "ephemeral-network" not in limiter._requests
+
+
 def test_sliding_window_isolates_network_scopes_without_retaining_raw_identity() -> None:
     limiter = SlidingWindowRateLimiter(max_requests=1, window_seconds=10, clock=lambda: 100.0)
 
