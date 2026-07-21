@@ -6,8 +6,13 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.notifications.preferences import NotificationPreferenceRepository
+from app.modules.notifications.provider import NotificationProviderError
 from app.modules.notifications.repository import NotificationIntentRepository
 from app.modules.notifications.scheduler import NotificationIntent
+from app.modules.notifications.service import (
+    NotificationScheduleReport,
+    NotificationSchedulingService,
+)
 
 logger = structlog.get_logger()
 
@@ -74,13 +79,18 @@ class NotificationDeliveryWorker:
             )
             try:
                 await self._provider.send(notification)
-            except Exception:
+            except Exception as error:
+                retryable_error = not isinstance(
+                    error, NotificationProviderError
+                ) or error.retryable
                 await intent_repository.mark_failed(
                     record.dedupe_key,
                     error="notification provider delivery failed",
-                    max_attempts=self._max_attempts,
+                    max_attempts=self._max_attempts if retryable_error else 1,
                 )
-                terminal = record.attempts >= self._max_attempts
+                terminal = (
+                    not retryable_error or record.attempts >= self._max_attempts
+                )
                 await preference_repository.mark_delivery(
                     record.user_id,
                     status="failed" if terminal else "scheduled",
@@ -109,3 +119,21 @@ class NotificationDeliveryWorker:
             failed=report.failed,
         )
         return report
+
+
+async def run_notification_cycle(
+    session: AsyncSession,
+    provider: NotificationProvider,
+    *,
+    now: datetime | None = None,
+    limit: int = 50,
+) -> tuple[NotificationScheduleReport, NotificationDeliveryReport]:
+    """Explicit deployment/cron entry point; never invoked by request handling."""
+    current_time = now or datetime.now(UTC)
+    schedule = await NotificationSchedulingService(session).schedule_due_from_repository(
+        now=current_time
+    )
+    delivery = await NotificationDeliveryWorker(session, provider).deliver_pending(
+        limit=limit, now=current_time
+    )
+    return schedule, delivery
