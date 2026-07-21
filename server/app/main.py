@@ -40,6 +40,11 @@ from app.core.logging import configure_logging
 from app.core.rate_limit import SlidingWindowRateLimiter, route_family
 from app.core.settings import get_settings
 from app.core.telemetry import configure_tracing, instrument_fastapi
+from app.modules.notifications.preferences import (
+    NotificationPreference,
+    NotificationPreferenceRepository,
+    NotificationPreferenceUpdate,
+)
 from app.modules.phases.ask_api import (
     AskResponse,
     RoadmapFoldRequest,
@@ -247,6 +252,40 @@ class RoadmapActionRequest(BaseModel):
 class EnrollmentRequest(BaseModel):
     context: dict[str, str] = Field(default_factory=dict)
     progress_anchor: date = Field(default_factory=date.today)
+
+
+@app.get(
+    "/notifications/preferences/{user_id}",
+    response_model=NotificationPreference,
+    tags=["notifications"],
+)
+async def notification_preferences(
+    user_id: str,
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    subject: AuthenticatedSubject = Depends(authenticated_subject),  # noqa: B008
+    _rate_limit: None = Depends(enforce_protected_rate_limit),  # noqa: B008
+) -> NotificationPreference:
+    authorized_user_id = authorize_subject_scope(subject, user_id)
+    preference = await NotificationPreferenceRepository(session).get(authorized_user_id)
+    return preference or NotificationPreference(user_id=authorized_user_id)
+
+
+@app.put(
+    "/notifications/preferences/{user_id}",
+    response_model=NotificationPreference,
+    tags=["notifications"],
+)
+async def save_notification_preferences(
+    user_id: str,
+    request: NotificationPreferenceUpdate,
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    subject: AuthenticatedSubject = Depends(authenticated_subject),  # noqa: B008
+    _rate_limit: None = Depends(enforce_protected_rate_limit),  # noqa: B008
+) -> NotificationPreference:
+    authorized_user_id = authorize_subject_scope(subject, user_id)
+    return await NotificationPreferenceRepository(session).upsert(
+        authorized_user_id, request
+    )
 
 
 @app.get(
