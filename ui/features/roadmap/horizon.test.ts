@@ -10,3 +10,9 @@ describe("horizonGroupLabel", () => {
     expect(horizonGroupLabel(31)).toBe("Later");
   });
 });
+
+test("labels stale citation evidence in Horizon", async () => {
+  const source = await Bun.file("app/horizon/page.tsx").text();
+  expect(source).toContain("Source review due");
+  expect(source).toContain("card.citation_stale");
+});

@@ -151,6 +151,11 @@ export default function HorizonPage() {
                     <span className="mt-1 block text-sm text-muted-foreground">
                       {card.reason}
                     </span>
+                    {card.citation_stale ? (
+                      <span className="mt-3 block text-xs text-muted-foreground">
+                        Source review due
+                      </span>
+                    ) : null}
                     {card.hidden_factor ? (
                       <span className="mt-3 block text-xs text-hidden-factor">
                         Hidden factor
