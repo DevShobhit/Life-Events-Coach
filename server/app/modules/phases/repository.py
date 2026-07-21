@@ -87,3 +87,14 @@ class PhaseModuleRepository:
             (row.version, PhaseModule.model_validate(row.content))
             for row in result.scalars().all()
         ]
+
+    async def list_versions(self, phase_id: str) -> list[tuple[int, str, PhaseModule]]:
+        result = await self._session.execute(
+            select(PhaseModuleVersion)
+            .where(PhaseModuleVersion.phase_id == phase_id)
+            .order_by(PhaseModuleVersion.version.desc())
+        )
+        return [
+            (row.version, row.status, PhaseModule.model_validate(row.content))
+            for row in result.scalars().all()
+        ]

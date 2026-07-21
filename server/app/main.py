@@ -23,6 +23,8 @@ from app.core.auth import (
     AuthenticatedSubject,
     authenticated_subject,
     authorize_subject_scope,
+    editorial_publisher,
+    editorial_subject,
 )
 from app.core.database import get_session
 from app.core.errors import (
@@ -41,16 +43,16 @@ from app.core.logging import configure_logging
 from app.core.rate_limit import SlidingWindowRateLimiter, route_family
 from app.core.settings import get_settings
 from app.core.telemetry import configure_tracing, instrument_fastapi
-from app.modules.notifications.preferences import (
-    NotificationPreference,
-    NotificationPreferenceRepository,
-    NotificationPreferenceUpdate,
-)
 from app.modules.account.data_lifecycle import (
     AccountDataExport,
     AccountDeleteRequest,
     delete_account_data,
     export_account_data,
+)
+from app.modules.notifications.preferences import (
+    NotificationPreference,
+    NotificationPreferenceRepository,
+    NotificationPreferenceUpdate,
 )
 from app.modules.phases.ask_api import (
     AskResponse,
@@ -67,12 +69,18 @@ from app.modules.phases.enrollment_repository import EnrollmentRepository
 from app.modules.phases.freshness import FreshnessReport, freshness_report
 from app.modules.phases.grounding import GroundingTimeout
 from app.modules.phases.lifecycle import CardAction
+from app.modules.phases.publication import (
+    PhaseModuleCache,
+    PhaseModulePublisher,
+    PublicationError,
+)
+from app.modules.phases.repository import PhaseModuleRepository
 from app.modules.phases.roadmap import (
     RoadmapResponse,
     apply_persistent_action,
     persistent_roadmap,
 )
-from app.modules.phases.schemas import Enrollment, EnrollmentLifecycleEvent
+from app.modules.phases.schemas import Enrollment, EnrollmentLifecycleEvent, PhaseModule
 
 logger = structlog.get_logger()
 http_requests = Counter(
@@ -158,7 +166,7 @@ app.add_middleware(
     ),
     allow_credentials=False,
     allow_methods=["DELETE", "GET", "POST", "PUT"],
-    allow_headers=["X-Request-ID", "X-User-ID", "Content-Type"],
+    allow_headers=["X-Request-ID", "X-User-ID", "X-User-Role", "Content-Type"],
 )
 instrument_fastapi(app)
 
@@ -178,6 +186,52 @@ async def enforce_protected_rate_limit(request: Request) -> None:
             method=request.method,
         )
         raise RateLimitExceededError()
+
+
+class EditorialPublishRequest(BaseModel):
+    version: int = Field(ge=1)
+    module: PhaseModule
+    production: bool = False
+
+
+@app.get("/editorial/phases/{phase_id}/versions", dependencies=[Depends(enforce_protected_rate_limit)])
+async def editorial_versions(
+    phase_id: str,
+    _: object = Depends(editorial_subject),
+    session: AsyncSession = Depends(get_session),
+) -> list[dict[str, object]]:
+    versions = await PhaseModuleRepository(session).list_versions(phase_id)
+    return [
+        {"phase_id": phase_id, "version": version, "status": status, "module": module}
+        for version, status, module in versions
+    ]
+
+
+@app.post("/editorial/phases/{phase_id}/publish", dependencies=[Depends(enforce_protected_rate_limit)])
+async def editorial_publish(
+    phase_id: str,
+    payload: EditorialPublishRequest,
+    _: object = Depends(editorial_publisher),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, object]:
+    if payload.module.phase_id != phase_id:
+        raise BadRequestError("module phase does not match route phase")
+    existing_versions = await PhaseModuleRepository(session).list_versions(phase_id)
+    if any(version == payload.version for version, _, _ in existing_versions):
+        raise ConflictError("publication version already exists")
+    try:
+        module = await PhaseModulePublisher(
+            PhaseModuleRepository(session), PhaseModuleCache()
+        ).publish(
+            payload.module.model_dump(mode="json"),
+            version=payload.version,
+            production=payload.production,
+        )
+    except PublicationError as error:
+        raise BadRequestError(
+            "phase module publication validation failed", details=error.field_errors
+        ) from error
+    return {"phase_id": phase_id, "version": payload.version, "status": "published", "module": module}
 
 
 @app.get("/account/{user_id}/export", response_model=AccountDataExport, dependencies=[Depends(enforce_protected_rate_limit)])
