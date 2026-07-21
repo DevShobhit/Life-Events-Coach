@@ -21,6 +21,47 @@ export type PhaseModule = {
     skip_count_for_relevance_check?: number;
     freshness_days?: number;
   };
+  source_policy: string[];
+  concerns: EditorialConcern[];
+  qa_bank?: CuratedAnswer[];
+};
+
+export type CuratedAnswer = {
+  id: string;
+  question: string;
+  answer: string;
+  citations: Citation[];
+};
+
+export type EditorialConcern = {
+  id: string;
+  title: string;
+  content_category?: string | null;
+  urgency: number;
+  horizon_days: number;
+  hidden_factor: boolean;
+  available_stages: string[];
+  bullets: string[];
+  why_now: string;
+  citation: Citation;
+  card: { visual_url: string | null; body: string };
+};
+
+export type EditorialDraft = {
+  draft_id: string;
+  phase_id: string;
+  base_version: number | null;
+  status: "draft" | "validated" | "published" | "abandoned";
+  revision: number;
+  module: PhaseModule;
+  validation_report: Record<string, string[]> | null;
+  published_version: number | null;
+};
+
+export type EditorialValidation = {
+  draft_id: string;
+  valid: boolean;
+  validation_report: Record<string, string[]>;
 };
 
 export type PublishedPhaseModule = {

@@ -175,7 +175,7 @@ app.add_middleware(
         r"^https?://[^/]+$" if settings.app_env == "development" else None
     ),
     allow_credentials=False,
-    allow_methods=["DELETE", "GET", "POST", "PUT"],
+    allow_methods=["DELETE", "GET", "PATCH", "POST", "PUT"],
     allow_headers=["X-Request-ID", "X-User-ID", "X-User-Role", "Content-Type"],
 )
 instrument_fastapi(app)

@@ -8,6 +8,9 @@ import type {
   EnrollmentLifecycleEvent,
   NotificationPreference,
   AccountDataExport,
+  EditorialDraft,
+  EditorialValidation,
+  PhaseModule,
   PublishedPhaseModule,
   RoadmapResponse,
 } from "./types";
@@ -21,6 +24,7 @@ type ClientOptions = {
 type RequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
   userId?: string;
+  editorialRole?: "editor" | "publisher" | "admin";
 };
 
 export class LifeCurriculumClient {
@@ -173,12 +177,46 @@ export class LifeCurriculumClient {
     );
   }
 
+  editorialDrafts(phaseId: string, role: "editor" | "publisher" | "admin", signal?: AbortSignal) {
+    return this.request<EditorialDraft[]>(
+      `/editorial/phases/${encodeURIComponent(phaseId)}/drafts`,
+      { editorialRole: role, signal },
+    );
+  }
+
+  createEditorialDraft(phaseId: string, role: "editor" | "publisher" | "admin", module: PhaseModule) {
+    return this.request<EditorialDraft>(
+      `/editorial/phases/${encodeURIComponent(phaseId)}/drafts`,
+      { editorialRole: role, method: "POST", body: { module } },
+    );
+  }
+
+  updateEditorialDraft(
+    phaseId: string,
+    draftId: string,
+    role: "editor" | "publisher" | "admin",
+    module: PhaseModule,
+    expectedRevision: number,
+  ) {
+    return this.request<EditorialDraft>(
+      `/editorial/phases/${encodeURIComponent(phaseId)}/drafts/${encodeURIComponent(draftId)}`,
+      { editorialRole: role, method: "PATCH", body: { module, expected_revision: expectedRevision } },
+    );
+  }
+
+  validateEditorialDraft(phaseId: string, draftId: string, role: "editor" | "publisher" | "admin") {
+    return this.request<EditorialValidation>(
+      `/editorial/phases/${encodeURIComponent(phaseId)}/drafts/${encodeURIComponent(draftId)}/validate`,
+      { editorialRole: role, method: "POST" },
+    );
+  }
+
   private async request<T>(
     path: string,
     options: RequestOptions = {},
   ): Promise<T> {
     const requestId = crypto.randomUUID();
-    const { userId, ...requestInit } = options;
+    const { userId, editorialRole, ...requestInit } = options;
     const method = requestInit.method ?? "GET";
     const logPath = redactPath(path);
     const startedAt = performance.now();
@@ -196,6 +234,7 @@ export class LifeCurriculumClient {
           "Content-Type": "application/json",
           "X-Request-ID": requestId,
           ...(userId ? { "X-User-ID": userId } : {}),
+          ...(editorialRole ? { "X-User-Role": editorialRole } : {}),
           ...requestInit.headers,
         },
       });

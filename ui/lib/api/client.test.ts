@@ -4,6 +4,41 @@ import { LifeCurriculumClient } from "./client";
 import { ApiError } from "./errors";
 
 describe("LifeCurriculumClient", () => {
+  test("uses role-scoped editorial draft and publish endpoints", async () => {
+    const requests: Request[] = [];
+    const client = new LifeCurriculumClient({
+      baseUrl: "https://api.example.test",
+      fetcher: async (input, init) => {
+        requests.push(new Request(input, init));
+        if (String(input).includes("/drafts")) {
+          return Response.json({
+            draft_id: "draft-1",
+            phase_id: "relocation",
+            base_version: 1,
+            status: "draft",
+            revision: 1,
+            module: { schema_version: "1.0", phase_id: "relocation" },
+            validation_report: null,
+            published_version: null,
+          });
+        }
+        return Response.json([]);
+      },
+    });
+
+    await client.editorialDrafts("relocation", "editor");
+    await client.createEditorialDraft("relocation", "editor", {
+      schema_version: "1.0",
+      phase_id: "relocation",
+      source_policy: ["government_portal"],
+      onboarding_fields: [],
+      concerns: [],
+    });
+
+    expect(requests[0]?.headers.get("X-User-Role")).toBe("editor");
+    expect(requests[1]?.method).toBe("POST");
+    expect(requests[1]?.url).toContain("/editorial/phases/relocation/drafts");
+  });
   test("reads the published phase catalog with configured onboarding fields", async () => {
     const client = new LifeCurriculumClient({
       baseUrl: "https://api.example.test",
