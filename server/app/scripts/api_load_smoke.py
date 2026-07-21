@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import time
 from collections.abc import Iterable
 from math import ceil
@@ -36,6 +37,14 @@ def summarize_results(results: Iterable[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def build_load_headers(
+    *, user_id: str | None, access_token: str | None
+) -> dict[str, str]:
+    if access_token:
+        return {"Authorization": f"Bearer {access_token}"}
+    return {"X-User-ID": user_id} if user_id else {}
+
+
 async def run_load(
     *,
     base_url: str,
@@ -43,12 +52,13 @@ async def run_load(
     requests: int,
     concurrency: int,
     user_id: str | None = None,
+    access_token: str | None = None,
     timeout_seconds: float = 10.0,
 ) -> list[dict[str, Any]]:
     if requests < 1 or concurrency < 1:
         raise ValueError("requests and concurrency must be positive")
     semaphore = asyncio.Semaphore(concurrency)
-    headers = {"X-User-ID": user_id} if user_id else {}
+    headers = build_load_headers(user_id=user_id, access_token=access_token)
 
     async with httpx.AsyncClient(base_url=base_url.rstrip("/"), timeout=timeout_seconds) as client:
         async def request_once() -> dict[str, Any]:
@@ -76,6 +86,11 @@ def main() -> int:
     parser.add_argument("--requests", type=int, default=100)
     parser.add_argument("--concurrency", type=int, default=10)
     parser.add_argument("--user-id")
+    parser.add_argument(
+        "--auth-token-env",
+        default="LOAD_SMOKE_AUTH_TOKEN",
+        help="environment variable containing a bearer token; never printed",
+    )
     parser.add_argument("--max-p95-ms", type=float, default=0.0)
     args = parser.parse_args()
     results = asyncio.run(
@@ -85,6 +100,7 @@ def main() -> int:
             requests=args.requests,
             concurrency=args.concurrency,
             user_id=args.user_id,
+            access_token=os.environ.get(args.auth_token_env),
         )
     )
     summary = summarize_results(results)

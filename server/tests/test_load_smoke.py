@@ -1,4 +1,13 @@
-from app.scripts.api_load_smoke import summarize_results
+from app.scripts.api_load_smoke import build_load_headers, summarize_results
+
+
+def test_load_headers_prefer_bearer_token_without_exposing_it() -> None:
+    assert build_load_headers(user_id="dev-user", access_token="secret") == {
+        "Authorization": "Bearer secret"
+    }
+    assert build_load_headers(user_id="dev-user", access_token=None) == {
+        "X-User-ID": "dev-user"
+    }
 
 
 def test_load_summary_reports_success_rate_and_percentiles() -> None:
