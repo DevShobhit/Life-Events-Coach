@@ -4,8 +4,9 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol
 
+import httpx
 import structlog
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from app.modules.phases.schemas import Citation, PhaseModule
 
@@ -36,6 +37,61 @@ class GroundedResponse(BaseModel):
     version: int
     answer: str
     citations: list[Citation]
+
+
+class HttpGroundingProvider:
+    """Retrieve approved-source matches from a configured provider."""
+
+    def __init__(
+        self,
+        base_url: str,
+        *,
+        timeout_seconds: float = 2.0,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
+        if not base_url:
+            raise ValueError("grounding provider URL must not be empty")
+        if timeout_seconds <= 0:
+            raise ValueError("grounding provider timeout must be positive")
+        self._base_url = base_url.rstrip("/")
+        self._timeout_seconds = timeout_seconds
+        self._transport = transport
+
+    async def retrieve(
+        self, module: PhaseModule, question: str, max_results: int
+    ) -> list[GroundingSource]:
+        async with httpx.AsyncClient(
+            timeout=self._timeout_seconds, transport=self._transport
+        ) as client:
+            response = await client.post(
+                f"{self._base_url}/retrieve",
+                json={
+                    "phase_id": module.phase_id,
+                    "question": question,
+                    "max_results": max_results,
+                },
+            )
+            response.raise_for_status()
+            payload = response.json()
+        allowed = {concern.citation.id: concern.id for concern in module.concerns}
+        sources: list[GroundingSource] = []
+        for item in payload.get("sources", []):
+            try:
+                citation = Citation.model_validate(item["citation"])
+            except (KeyError, TypeError, ValidationError):
+                continue
+            concern_id = allowed.get(citation.id)
+            if concern_id is None:
+                continue
+            sources.append(
+                GroundingSource(
+                    concern_id=concern_id,
+                    snippet=str(item.get("snippet", "")),
+                    citation=citation,
+                    score=float(item.get("score", 0)),
+                )
+            )
+        return sources[:max_results]
 
 
 class GroundingProvider(Protocol):

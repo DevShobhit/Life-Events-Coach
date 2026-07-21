@@ -81,7 +81,12 @@ from app.modules.phases.editorial import (
 from app.modules.phases.enrollment import validate_enrollment
 from app.modules.phases.enrollment_repository import EnrollmentRepository
 from app.modules.phases.freshness import FreshnessReport, freshness_report
-from app.modules.phases.grounding import GroundingTimeout
+from app.modules.phases.grounding import (
+    GroundingTimeout,
+    HttpGroundingProvider,
+    InProcessGroundingProvider,
+    ResilientGroundingProvider,
+)
 from app.modules.phases.lifecycle import CardAction
 from app.modules.phases.orm_models import PhaseModuleActive, PhaseModuleVersion
 from app.modules.phases.publication import (
@@ -166,6 +171,19 @@ settings = get_settings()
 protected_rate_limiter = SlidingWindowRateLimiter(
     max_requests=settings.protected_rate_limit_requests,
     window_seconds=settings.protected_rate_limit_window_seconds,
+)
+_local_grounding = InProcessGroundingProvider()
+grounding_provider = ResilientGroundingProvider(
+    primary=(
+        HttpGroundingProvider(
+            str(settings.approved_source_provider_url),
+            timeout_seconds=settings.approved_source_provider_timeout_seconds,
+        )
+        if settings.approved_source_provider_url
+        else _local_grounding
+    ),
+    fallback=_local_grounding,
+    timeout_seconds=settings.approved_source_provider_timeout_seconds,
 )
 app = FastAPI(title="LifeCurriculum API", version="0.1.0", lifespan=lifespan)
 app.add_exception_handler(AppError, app_error_handler)
@@ -771,7 +789,10 @@ async def ask(
         raise NotFoundError("phase")
     try:
         return await answer_question(
-            published.module, version=published.version, question=request.question
+            published.module,
+            version=published.version,
+            question=request.question,
+            provider=grounding_provider,
         )
     except GroundingTimeout as error:
         raise GatewayTimeoutError() from error

@@ -1,10 +1,12 @@
 import asyncio
 
+import httpx
 import pytest
 from app.modules.phases.grounding import (
     GroundedMode,
     GroundingSource,
     GroundingTimeout,
+    HttpGroundingProvider,
     InProcessGroundingProvider,
     ResilientGroundingProvider,
     grounded_fallback,
@@ -140,3 +142,38 @@ def test_resilient_provider_falls_back_on_provider_failure() -> None:
         provider.retrieve(module_fixture(), "visa conditions", max_results=3)
     )
     assert result[0].citation.id == "visa-citation"
+
+
+def test_http_provider_posts_safe_phase_query_and_filters_unapproved_sources() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(
+            200,
+            json={
+                "sources": [
+                    {
+                        "snippet": "approved",
+                        "score": 0.9,
+                        "citation": module_fixture().concerns[0].citation.model_dump(
+                            mode="json"
+                        ),
+                    },
+                    {"snippet": "unapproved", "score": 1.0, "citation": {"id": "unknown"}},
+                ]
+            },
+        )
+
+    async def run() -> list[GroundingSource]:
+        provider = HttpGroundingProvider(
+            "https://provider.example", transport=httpx.MockTransport(handler)
+        )
+        return await provider.retrieve(module_fixture(), "visa conditions", 3)
+
+    result = asyncio.run(run())
+    assert [source.citation.id for source in result] == ["visa-citation"]
+    assert requests[0].url.path == "/retrieve"
+    assert requests[0].content == (
+        b'{"phase_id":"relocation","question":"visa conditions","max_results":3}'
+    )

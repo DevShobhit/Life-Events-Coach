@@ -1,7 +1,11 @@
 from pydantic import BaseModel, Field
 
 from app.modules.phases.ask import match_curated
-from app.modules.phases.grounding import GroundedMode, grounded_fallback
+from app.modules.phases.grounding import (
+    GroundedMode,
+    GroundingProvider,
+    grounded_fallback,
+)
 from app.modules.phases.schemas import Citation, PhaseModule
 
 
@@ -28,7 +32,11 @@ class RoadmapFoldRequest(BaseModel):
 
 
 async def answer_question(
-    module: PhaseModule, *, version: int, question: str
+    module: PhaseModule,
+    *,
+    version: int,
+    question: str,
+    provider: GroundingProvider | None = None,
 ) -> AskResponse:
     curated = match_curated(module, version=version, question=question)
     if curated is not None:
@@ -45,6 +53,7 @@ async def answer_question(
         module,
         version=version,
         question=question,
+        provider=provider,
     )
     proposal = None
     if grounded.mode == GroundedMode.GROUNDED:
