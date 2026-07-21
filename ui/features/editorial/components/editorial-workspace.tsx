@@ -5,6 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
+import {
+  updateEditorialMetadata,
+  type EditorialMetadataField,
+} from "@/features/editorial/editorial-form";
 import type {
   EditorialDraft,
   EditorialFreshness,
@@ -68,6 +72,13 @@ export function EditorialWorkspace() {
     setEditorText(JSON.stringify(next.module, null, 2));
     setPreviewText(null);
     setMessage(null);
+  }
+
+  function updateMetadata(field: EditorialMetadataField, value: string) {
+    if (!draft) return;
+    const nextModule = updateEditorialMetadata(draft.module, field, value);
+    setDraft({ ...draft, module: nextModule });
+    setEditorText(JSON.stringify(nextModule, null, 2));
   }
 
   async function createDraft() {
@@ -307,6 +318,39 @@ export function EditorialWorkspace() {
                   ) : null}
                 </div>
               </div>
+              <label className="grid gap-2 text-sm">
+                Display name
+                <input
+                  aria-label="Draft display name"
+                  className="h-10 rounded-md border border-border bg-background px-3"
+                  onChange={(event) =>
+                    updateMetadata("display_name", event.target.value)
+                  }
+                  value={draft.module.display_name ?? ""}
+                />
+              </label>
+              <label className="grid gap-2 text-sm">
+                Description
+                <textarea
+                  aria-label="Draft description"
+                  className="min-h-24 rounded-md border border-border bg-background p-3"
+                  onChange={(event) =>
+                    updateMetadata("description", event.target.value)
+                  }
+                  value={draft.module.description ?? ""}
+                />
+              </label>
+              <label className="grid gap-2 text-sm">
+                Approved source policy (one per line)
+                <textarea
+                  aria-label="Draft source policy"
+                  className="min-h-24 rounded-md border border-border bg-background p-3"
+                  onChange={(event) =>
+                    updateMetadata("source_policy", event.target.value)
+                  }
+                  value={draft.module.source_policy.join("\n")}
+                />
+              </label>
               <label className="grid gap-2 text-sm">
                 Module JSON
                 <textarea
