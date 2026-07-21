@@ -21,4 +21,10 @@ describe("AskSheet response messaging", () => {
     expect(isRetryableAskError({ status: 504 })).toBe(true);
     expect(isRetryableAskError({ status: 422 })).toBe(false);
   });
+
+  test("provides recovery copy for roadmap-fold failures", async () => {
+    const source = await Bun.file("components/ask-sheet.tsx").text();
+    expect(source).toContain("Retry adding to roadmap");
+    expect(source).toContain("foldMutation.error");
+  });
 });

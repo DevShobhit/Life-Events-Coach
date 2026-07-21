@@ -189,6 +189,19 @@ export function AskSheet({
                 Retry question
               </Button>
             ) : null}
+            {foldMutation.error &&
+            response?.roadmap_proposal &&
+            isRetryableAskError(foldMutation.error) ? (
+              <Button
+                className="min-h-11"
+                disabled={foldMutation.isPending}
+                onClick={() => void fold()}
+                type="button"
+                variant="outline"
+              >
+                Retry adding to roadmap
+              </Button>
+            ) : null}
           </div>
         ) : null}
         {folded ? (
