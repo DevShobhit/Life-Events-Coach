@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import {
+  updateEditorialConcern,
   updateEditorialMetadata,
+  type EditorialConcernField,
   type EditorialMetadataField,
 } from "@/features/editorial/editorial-form";
 import type {
@@ -77,6 +79,22 @@ export function EditorialWorkspace() {
   function updateMetadata(field: EditorialMetadataField, value: string) {
     if (!draft) return;
     const nextModule = updateEditorialMetadata(draft.module, field, value);
+    setDraft({ ...draft, module: nextModule });
+    setEditorText(JSON.stringify(nextModule, null, 2));
+  }
+
+  function updateConcern(
+    concernId: string,
+    field: EditorialConcernField,
+    value: string,
+  ) {
+    if (!draft) return;
+    const nextModule = updateEditorialConcern(
+      draft.module,
+      concernId,
+      field,
+      value,
+    );
     setDraft({ ...draft, module: nextModule });
     setEditorText(JSON.stringify(nextModule, null, 2));
   }
@@ -351,6 +369,53 @@ export function EditorialWorkspace() {
                   value={draft.module.source_policy.join("\n")}
                 />
               </label>
+              <fieldset className="space-y-4 rounded-md border border-border p-4">
+                <legend className="px-1 text-sm font-medium">Concerns</legend>
+                {draft.module.concerns.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No concerns are configured for this draft.
+                  </p>
+                ) : (
+                  draft.module.concerns.map((concern) => (
+                    <div className="space-y-3 border-t border-border pt-4 first:border-t-0 first:pt-0" key={concern.id}>
+                      <p className="text-sm font-medium">{concern.id}</p>
+                      <label className="grid gap-1 text-sm">
+                        Title
+                        <input
+                          aria-label={`${concern.id} title`}
+                          className="h-10 rounded-md border border-border bg-background px-3"
+                          onChange={(event) =>
+                            updateConcern(concern.id, "title", event.target.value)
+                          }
+                          value={concern.title}
+                        />
+                      </label>
+                      <label className="grid gap-1 text-sm">
+                        Why now
+                        <textarea
+                          aria-label={`${concern.id} why now`}
+                          className="min-h-20 rounded-md border border-border bg-background p-3"
+                          onChange={(event) =>
+                            updateConcern(concern.id, "why_now", event.target.value)
+                          }
+                          value={concern.why_now}
+                        />
+                      </label>
+                      <label className="grid gap-1 text-sm">
+                        Bullets (one per line)
+                        <textarea
+                          aria-label={`${concern.id} bullets`}
+                          className="min-h-20 rounded-md border border-border bg-background p-3"
+                          onChange={(event) =>
+                            updateConcern(concern.id, "bullets", event.target.value)
+                          }
+                          value={concern.bullets.join("\n")}
+                        />
+                      </label>
+                    </div>
+                  ))
+                )}
+              </fieldset>
               <label className="grid gap-2 text-sm">
                 Module JSON
                 <textarea

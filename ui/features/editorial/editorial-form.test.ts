@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { updateEditorialMetadata } from "./editorial-form";
+import { updateEditorialConcern, updateEditorialMetadata } from "./editorial-form";
 
 describe("editorial metadata editor", () => {
   test("updates display metadata without dropping module content", () => {
@@ -31,5 +31,30 @@ describe("editorial metadata editor", () => {
     expect(
       updateEditorialMetadata(module, "source_policy", " official \n\n public-records "),
     ).toEqual({ ...module, source_policy: ["official", "public-records"] });
+  });
+
+  test("updates only the selected concern and normalizes bullets", () => {
+    const module = {
+      schema_version: "1.0",
+      phase_id: "relocation",
+      onboarding_fields: [],
+      source_policy: [],
+      concerns: [
+        { id: "housing", title: "Housing", bullets: ["old"], why_now: "now" },
+        { id: "school", title: "School", bullets: ["keep"], why_now: "later" },
+      ],
+    } as never;
+
+    const updated = updateEditorialConcern(
+      module,
+      "housing",
+      "bullets",
+      " first \n\n second ",
+    );
+
+    expect(updated.concerns).toEqual([
+      expect.objectContaining({ id: "housing", bullets: ["first", "second"] }),
+      expect.objectContaining({ id: "school", bullets: ["keep"] }),
+    ]);
   });
 });
