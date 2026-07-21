@@ -6,7 +6,9 @@ import { ApiError } from "./errors";
 describe("LifeCurriculumClient", () => {
   test("redacts API diagnostics to the origin", () => {
     expect(
-      apiOriginForDiagnostics("https://api.example.test/private?token=secret"),
+      apiOriginForDiagnostics(
+        "https://user:secret@api.example.test/private?token=secret",
+      ),
     ).toBe("https://api.example.test");
     expect(apiOriginForDiagnostics("not-a-url")).toBe("invalid-origin");
   });

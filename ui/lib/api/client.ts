@@ -389,7 +389,7 @@ export class LifeCurriculumClient {
       apiLogger.warn("api_request_failed", {
         method,
         path: logPath,
-        targetOrigin: this.baseUrl,
+        targetOrigin: apiOriginForDiagnostics(this.baseUrl),
         requestId,
         durationMs: Math.round(performance.now() - startedAt),
         errorType: error instanceof Error ? error.name : "unknown",
