@@ -1,9 +1,9 @@
 import pytest
-from fastapi.testclient import TestClient
-from app.core.auth import authenticated_subject
-from app.core.errors import AuthenticationRequiredError
+from app.core.auth import AuthenticatedSubject, authenticated_subject, authorize_subject_scope
+from app.core.errors import AuthenticationRequiredError, ForbiddenError
 from app.core.settings import get_settings
 from app.main import app
+from fastapi.testclient import TestClient
 
 
 @pytest.mark.anyio
@@ -66,3 +66,21 @@ def test_subject_dependency_is_the_only_protected_route_boundary() -> None:
                 for dependency in route.dependant.dependencies
             }
             assert "authenticated_subject" in dependency_names
+
+
+def test_authorize_subject_scope_accepts_only_the_matching_resource_subject() -> None:
+    subject = AuthenticatedSubject(subject_id="local-user", source="local_header")
+
+    assert authorize_subject_scope(subject, "local-user") == "local-user"
+
+    with pytest.raises(ForbiddenError) as error:
+        authorize_subject_scope(subject, "other-user")
+
+    assert error.value.code == "forbidden"
+
+
+def test_authorize_subject_scope_rejects_empty_resource_subject() -> None:
+    subject = AuthenticatedSubject(subject_id="local-user", source="local_header")
+
+    with pytest.raises(ForbiddenError):
+        authorize_subject_scope(subject, "")

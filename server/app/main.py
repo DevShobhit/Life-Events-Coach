@@ -18,12 +18,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
-from app.core.auth import AuthenticatedSubject, authenticated_subject
+from app.core.auth import (
+    AuthenticatedSubject,
+    authenticated_subject,
+    authorize_subject_scope,
+)
 from app.core.database import get_session
 from app.core.errors import (
     AppError,
     BadRequestError,
-    ForbiddenError,
     GatewayTimeoutError,
     NotFoundError,
     app_error_handler,
@@ -195,8 +198,7 @@ async def roadmap(
     session: AsyncSession = Depends(get_session),  # noqa: B008
     subject: AuthenticatedSubject = Depends(authenticated_subject),  # noqa: B008
 ) -> RoadmapResponse:
-    if subject.subject_id != user_id:
-        raise ForbiddenError("user scope mismatch")
+    authorized_user_id = authorize_subject_scope(subject, user_id)
     published = await get_persisted_module(session, phase_id)
     if published is None:
         raise NotFoundError("phase")
@@ -204,7 +206,7 @@ async def roadmap(
         session,
         published.module,
         version=published.version,
-        user_id=user_id,
+        user_id=authorized_user_id,
         stage=stage,
         today=date.today(),
     )
@@ -233,9 +235,10 @@ async def enrollment(
     session: AsyncSession = Depends(get_session),  # noqa: B008
     subject: AuthenticatedSubject = Depends(authenticated_subject),  # noqa: B008
 ) -> Enrollment:
-    if subject.subject_id != user_id:
-        raise ForbiddenError("user scope mismatch")
-    enrollment_record = await EnrollmentRepository(session).get(user_id, phase_id)
+    authorized_user_id = authorize_subject_scope(subject, user_id)
+    enrollment_record = await EnrollmentRepository(session).get(
+        authorized_user_id, phase_id
+    )
     if enrollment_record is None:
         raise NotFoundError("enrollment")
     return enrollment_record
@@ -253,15 +256,14 @@ async def save_enrollment(
     session: AsyncSession = Depends(get_session),  # noqa: B008
     subject: AuthenticatedSubject = Depends(authenticated_subject),  # noqa: B008
 ) -> Enrollment:
-    if subject.subject_id != user_id:
-        raise ForbiddenError("user scope mismatch")
+    authorized_user_id = authorize_subject_scope(subject, user_id)
     published = await get_persisted_module(session, phase_id)
     if published is None:
         raise NotFoundError("phase")
     try:
         enrollment_value = validate_enrollment(
             published.module,
-            user_id=user_id,
+            user_id=authorized_user_id,
             phase_id=phase_id,
             context=request.context,
             progress_anchor=request.progress_anchor,
@@ -269,7 +271,7 @@ async def save_enrollment(
     except ValueError as error:
         raise BadRequestError(str(error)) from error
     await EnrollmentRepository(session).save(enrollment_value)
-    saved = await EnrollmentRepository(session).get(user_id, phase_id)
+    saved = await EnrollmentRepository(session).get(authorized_user_id, phase_id)
     if saved is None:
         raise NotFoundError("enrollment")
     return saved
@@ -287,8 +289,7 @@ async def ask(
     session: AsyncSession = Depends(get_session),  # noqa: B008
     subject: AuthenticatedSubject = Depends(authenticated_subject),  # noqa: B008
 ) -> AskResponse:
-    if subject.subject_id != user_id:
-        raise ForbiddenError("user scope mismatch")
+    authorize_subject_scope(subject, user_id)
     published = await get_persisted_module(session, phase_id)
     if published is None:
         raise NotFoundError("phase")
@@ -313,8 +314,7 @@ async def confirm_roadmap_fold(
     session: AsyncSession = Depends(get_session),  # noqa: B008
     subject: AuthenticatedSubject = Depends(authenticated_subject),  # noqa: B008
 ) -> RoadmapResponse:
-    if subject.subject_id != user_id:
-        raise ForbiddenError("user scope mismatch")
+    authorized_user_id = authorize_subject_scope(subject, user_id)
     if not request.confirm:
         raise BadRequestError("confirm must be true to fold a concern into the roadmap")
     published = await get_persisted_module(session, phase_id)
@@ -325,7 +325,7 @@ async def confirm_roadmap_fold(
             session,
             published.module,
             version=published.version,
-            user_id=user_id,
+            user_id=authorized_user_id,
             concern_id=concern_id,
             action=CardAction.RELEVANT,
             stage=request.stage,
@@ -348,8 +348,7 @@ async def roadmap_action(
     session: AsyncSession = Depends(get_session),  # noqa: B008
     subject: AuthenticatedSubject = Depends(authenticated_subject),  # noqa: B008
 ) -> RoadmapResponse:
-    if subject.subject_id != user_id:
-        raise ForbiddenError("user scope mismatch")
+    authorized_user_id = authorize_subject_scope(subject, user_id)
     published = await get_persisted_module(session, phase_id)
     if published is None:
         raise NotFoundError("phase")
@@ -358,7 +357,7 @@ async def roadmap_action(
             session,
             published.module,
             version=published.version,
-            user_id=user_id,
+            user_id=authorized_user_id,
             concern_id=request.concern_id,
             action=request.action,
             stage=request.stage,
