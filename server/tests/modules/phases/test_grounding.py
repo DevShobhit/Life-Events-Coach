@@ -177,3 +177,12 @@ def test_http_provider_posts_safe_phase_query_and_filters_unapproved_sources() -
     assert requests[0].content == (
         b'{"phase_id":"relocation","question":"visa conditions","max_results":3}'
     )
+
+
+def test_http_provider_healthcheck_is_bounded_and_boolean() -> None:
+    provider = HttpGroundingProvider(
+        "https://provider.example",
+        transport=httpx.MockTransport(lambda request: httpx.Response(200)),
+    )
+
+    assert asyncio.run(provider.healthcheck()) is True

@@ -557,6 +557,12 @@ async def ready_health(
             status_code=503,
             content={"status": "unready", "service": "lifecurriculum-api"},
         )
+    if settings.approved_source_provider_url and not await grounding_provider.healthcheck():
+        logger.warning("application.readiness.grounding_provider_failed")
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unready", "service": "lifecurriculum-api"},
+        )
     return JSONResponse(
         status_code=200,
         content={"status": "ok", "service": "lifecurriculum-api"},

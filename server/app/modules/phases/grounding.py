@@ -57,6 +57,16 @@ class HttpGroundingProvider:
         self._timeout_seconds = timeout_seconds
         self._transport = transport
 
+    async def healthcheck(self) -> bool:
+        try:
+            async with httpx.AsyncClient(
+                timeout=self._timeout_seconds, transport=self._transport
+            ) as client:
+                response = await client.get(f"{self._base_url}/health")
+                return response.is_success
+        except Exception:
+            return False
+
     async def retrieve(
         self, module: PhaseModule, question: str, max_results: int
     ) -> list[GroundingSource]:
@@ -131,6 +141,9 @@ def retrieve_sources(
 
 
 class InProcessGroundingProvider:
+    async def healthcheck(self) -> bool:
+        return True
+
     async def retrieve(
         self, module: PhaseModule, question: str, max_results: int
     ) -> list[GroundingSource]:
@@ -152,6 +165,17 @@ class ResilientGroundingProvider:
         self._primary = primary
         self._fallback = fallback
         self._timeout_seconds = timeout_seconds
+
+    async def healthcheck(self) -> bool:
+        healthcheck = getattr(self._primary, "healthcheck", None)
+        if healthcheck is None:
+            return True
+        try:
+            return await asyncio.wait_for(
+                healthcheck(), timeout=self._timeout_seconds
+            )
+        except Exception:
+            return False
 
     async def retrieve(
         self, module: PhaseModule, question: str, max_results: int
