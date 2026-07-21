@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { classifyRouteResponse } from "./route-smoke-utils";
+import {
+  buildRoadmapSmokeHeaders,
+  classifyRouteResponse,
+} from "./route-smoke-utils";
 
 describe("route smoke response classification", () => {
   test("rejects generic framework error pages even when the HTTP status is successful", () => {
@@ -37,5 +40,17 @@ describe("route smoke response classification", () => {
     );
     expect(result.ok).toBe(true);
     expect(result.markerFound).toBe(true);
+  });
+
+  test("prefers a bearer token for authenticated roadmap smoke", () => {
+    expect(buildRoadmapSmokeHeaders("local-user", " smoke-secret ")).toEqual({
+      Authorization: "Bearer smoke-secret",
+    });
+  });
+
+  test("falls back to the development identity header without a token", () => {
+    expect(buildRoadmapSmokeHeaders("local-user")).toEqual({
+      "X-User-ID": "local-user",
+    });
   });
 });
