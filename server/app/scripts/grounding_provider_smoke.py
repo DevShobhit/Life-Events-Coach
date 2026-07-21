@@ -39,14 +39,22 @@ async def run_provider_smoke(
             "source_count": 0,
             "ok": False,
         }
-    payload: object = retrieve.json() if retrieve.is_success else {}
+    try:
+        payload: object = retrieve.json() if retrieve.is_success else {}
+    except ValueError:
+        payload = {}
     sources = payload.get("sources", []) if isinstance(payload, dict) else []
     return {
         "kind": "grounding_provider_smoke",
         "health_status": health.status_code,
         "retrieve_status": retrieve.status_code,
         "source_count": len(sources) if isinstance(sources, list) else 0,
-        "ok": health.is_success and retrieve.is_success and isinstance(sources, list),
+        "ok": (
+            health.is_success
+            and retrieve.is_success
+            and isinstance(sources, list)
+            and bool(payload)
+        ),
     }
 
 

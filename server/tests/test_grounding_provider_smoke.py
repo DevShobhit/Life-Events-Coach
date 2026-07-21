@@ -45,3 +45,21 @@ def test_provider_smoke_reports_transport_failure_without_payloads() -> None:
         "source_count": 0,
         "ok": False,
     }
+
+
+def test_provider_smoke_rejects_non_json_retrieve_response() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/health":
+            return httpx.Response(200)
+        return httpx.Response(200, text="not-json")
+
+    result = asyncio.run(
+        run_provider_smoke(
+            base_url="https://provider.example",
+            transport=httpx.MockTransport(handler),
+        )
+    )
+
+    assert result["retrieve_status"] == 200
+    assert result["source_count"] == 0
+    assert result["ok"] is False
