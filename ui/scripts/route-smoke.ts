@@ -1,5 +1,7 @@
 export {};
 
+import { classifyRouteResponse } from "./route-smoke-utils";
+
 const baseUrl = (process.env.SMOKE_BASE_URL ?? "http://localhost:3000").replace(
   /\/$/,
   "",
@@ -26,7 +28,12 @@ async function checkRoute(check: Check) {
       signal: AbortSignal.timeout(timeoutMs),
     });
     const body = await response.text();
-    const ok = response.status >= 200 && response.status < 400 && check.expected.test(body);
+    const classification = classifyRouteResponse(
+      response.status,
+      response.headers.get("content-type"),
+      body,
+      check.expected,
+    );
     console.log(
       JSON.stringify({
         kind: "route_smoke",
@@ -34,10 +41,10 @@ async function checkRoute(check: Check) {
         url: check.url,
         status: response.status,
         requestId: response.headers.get("x-request-id"),
-        ok,
+        ...classification,
       }),
     );
-    if (!ok) process.exitCode = 1;
+    if (!classification.ok) process.exitCode = 1;
   } catch (error) {
     console.error(
       JSON.stringify({
