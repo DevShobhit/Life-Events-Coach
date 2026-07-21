@@ -1,10 +1,11 @@
 from collections.abc import AsyncGenerator
+from datetime import date
 from typing import Any
 
 import pytest
 from app.modules.phases.action_repository import CardActionRepository
 from app.modules.phases.lifecycle import CardAction
-from app.modules.phases.orm_models import Base
+from app.modules.phases.orm_models import Base, CardProgressRecord
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 
@@ -66,6 +67,26 @@ async def test_duplicate_action_key_is_idempotent(session: AsyncSession) -> None
 
     assert first.idempotent is False
     assert second == type(first)(status="done", skip_count=0, idempotent=True)
+
+
+@pytest.mark.anyio
+async def test_terminal_completion_records_the_completion_date(
+    session: AsyncSession,
+) -> None:
+    repository = CardActionRepository(session)
+
+    await repository.apply(
+        user_id="u",
+        phase_id="relocation",
+        concern_id="c",
+        action=CardAction.DONE,
+        skip_threshold=2,
+        idempotency_key="completion-date",
+    )
+
+    progress = await session.get(CardProgressRecord, ("u", "relocation", "c"))
+    assert progress is not None
+    assert progress.completed_on == date.today()
 
 
 @pytest.mark.anyio

@@ -62,6 +62,7 @@ class CardProgressRecord(Base):
     concern_id: Mapped[str] = mapped_column(String(100), primary_key=True)
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="pending")
     skip_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    completed_on: Mapped[date | None] = mapped_column(Date, nullable=True)
 
 
 class CardActionRecord(Base):

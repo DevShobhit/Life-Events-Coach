@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import date
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -57,11 +58,18 @@ class CardActionRepository:
                         concern_id=concern_id,
                         status=next_state.status,
                         skip_count=next_state.skip_count,
+                        completed_on=(
+                            date.today()
+                            if next_state.status in {"done", "already_handled"}
+                            else None
+                        ),
                     )
                 )
             else:
                 progress.status = next_state.status
                 progress.skip_count = next_state.skip_count
+                if next_state.status in {"done", "already_handled"}:
+                    progress.completed_on = date.today()
             self._session.add(
                 CardActionRecord(
                     user_id=user_id,

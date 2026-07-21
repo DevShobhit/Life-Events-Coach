@@ -1,5 +1,5 @@
 from collections.abc import AsyncGenerator
-from datetime import time
+from datetime import UTC, datetime, time
 
 import pytest
 from app.modules.notifications.preferences import (
@@ -81,3 +81,12 @@ async def test_notification_preferences_upsert_and_read_are_subject_scoped(
     assert updated.enabled is False
     assert updated.delivery_status == "not_configured"
     assert await repository.get("user-2") is None
+
+    delivered = await repository.mark_delivery(
+        "user-1",
+        status="sent",
+        delivered_at=datetime(2026, 7, 21, 4, 0, tzinfo=UTC),
+    )
+    assert delivered is not None
+    assert delivered.delivery_status == "sent"
+    assert delivered.last_delivery_at is not None

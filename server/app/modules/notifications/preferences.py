@@ -65,6 +65,22 @@ class NotificationPreferenceRepository:
             raise RuntimeError("notification preference was not persisted")
         return self._to_schema(refreshed)
 
+    async def mark_delivery(
+        self,
+        user_id: str,
+        *,
+        status: DeliveryStatus,
+        delivered_at: datetime | None,
+    ) -> NotificationPreference | None:
+        async with session_transaction(self._session):
+            record = await self._session.get(NotificationPreferenceRecord, user_id)
+            if record is None:
+                return None
+            record.delivery_status = status
+            record.last_delivery_at = delivered_at
+        refreshed = await self._session.get(NotificationPreferenceRecord, user_id)
+        return self._to_schema(refreshed) if refreshed is not None else None
+
     @staticmethod
     def _to_schema(record: NotificationPreferenceRecord) -> NotificationPreference:
         return NotificationPreference(

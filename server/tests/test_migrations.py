@@ -17,6 +17,7 @@ def test_migration_files_are_ordered_sql_files() -> None:
         "002_phase_enrollments.sql",
         "003_card_actions.sql",
         "004_notification_preferences.sql",
+        "005_card_completion_date.sql",
     ]
 
 
