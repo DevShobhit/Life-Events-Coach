@@ -23,6 +23,7 @@ from app.core.auth import (
     AuthenticatedSubject,
     authenticated_subject,
     authorize_subject_scope,
+    configure_identity_provider_from_settings,
     editorial_admin,
     editorial_publisher,
     editorial_subject,
@@ -160,6 +161,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
+    configure_identity_provider_from_settings()
     configure_logging(settings.log_level)
     configure_tracing(settings)
     logger.info("application.started", environment=settings.app_env)

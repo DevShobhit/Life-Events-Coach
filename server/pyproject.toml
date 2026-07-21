@@ -10,6 +10,7 @@ dependencies = [
     "asyncpg>=0.31.0",
     "fastapi>=0.139.2",
     "httpx>=0.28.1",
+    "pyjwt[crypto]>=2.10.1",
     "opentelemetry-api>=1.44.0",
     "opentelemetry-exporter-otlp>=1.44.0",
     "opentelemetry-instrumentation-fastapi>=0.65b0",

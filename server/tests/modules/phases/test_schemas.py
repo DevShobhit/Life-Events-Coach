@@ -130,3 +130,49 @@ def test_phase_module_rejects_duplicate_concern_ids() -> None:
                 "concerns": [concern, duplicate],
             }
         )
+
+
+def test_phase_module_rejects_duplicate_concern_citation_ids() -> None:
+    concern = valid_concern()
+    duplicate = valid_concern()
+    duplicate["id"] = "another-concern"
+
+    with pytest.raises(ValidationError, match="citation IDs must be unique"):
+        PhaseModule.model_validate(
+            {
+                "schema_version": "1.0",
+                "phase_id": "relocation",
+                "source_policy": ["government_portal"],
+                "onboarding_fields": [],
+                "concerns": [concern, duplicate],
+            }
+        )
+
+
+def test_phase_module_rejects_qa_citation_outside_source_policy() -> None:
+    with pytest.raises(ValidationError, match="qa citation source_type"):
+        PhaseModule.model_validate(
+            {
+                "schema_version": "1.0",
+                "phase_id": "relocation",
+                "source_policy": ["government_portal"],
+                "onboarding_fields": [],
+                "concerns": [valid_concern()],
+                "qa_bank": [
+                    {
+                        "id": "answer",
+                        "question": "What should I do?",
+                        "answer": "Use the official guidance.",
+                        "citations": [
+                            {
+                                "id": "expert",
+                                "title": "Expert guidance",
+                                "url": "https://example.com/expert",
+                                "source_type": "verified_expert",
+                                "reviewed_on": "2026-07-01",
+                            }
+                        ],
+                    }
+                ],
+            }
+        )

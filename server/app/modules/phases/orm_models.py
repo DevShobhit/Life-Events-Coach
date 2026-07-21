@@ -153,6 +153,24 @@ class NotificationPreferenceRecord(Base):
     )
 
 
+class NotificationIntentRecord(Base):
+    __tablename__ = "notification_intents"
+
+    dedupe_key: Mapped[str] = mapped_column(String(200), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    local_day: Mapped[date] = mapped_column(Date, nullable=False)
+    phase_ids: Mapped[list[str]] = mapped_column(JsonType, nullable=False)
+    reason: Mapped[str] = mapped_column(String(50), nullable=False, default="due")
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class PhaseLifecycleEventRecord(Base):
     __tablename__ = "phase_lifecycle_events"
 

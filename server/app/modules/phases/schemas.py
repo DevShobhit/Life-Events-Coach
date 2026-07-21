@@ -106,11 +106,21 @@ class PhaseModule(BaseModel):
         concern_ids = [concern.id for concern in self.concerns]
         if len(concern_ids) != len(set(concern_ids)):
             raise ValueError("concern IDs must be unique")
+        citation_ids = [concern.citation.id for concern in self.concerns]
+        if len(citation_ids) != len(set(citation_ids)):
+            raise ValueError("concern citation IDs must be unique")
         for concern in self.concerns:
             if concern.citation.source_type not in self.source_policy:
                 raise ValueError(
                     f"citation source_type is not in source_policy: {concern.id}"
                 )
+        for answer in self.qa_bank:
+            for citation in answer.citations:
+                if citation.source_type not in self.source_policy:
+                    raise ValueError(
+                        "qa citation source_type is not in source_policy: "
+                        f"{answer.id}"
+                    )
         metadata_keys = [field.key for field in self.onboarding_field_metadata]
         if len(metadata_keys) != len(set(metadata_keys)):
             raise ValueError("onboarding field metadata keys must be unique")

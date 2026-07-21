@@ -1,5 +1,10 @@
 import pytest
-from app.core.auth import AuthenticatedSubject, authenticated_subject, authorize_subject_scope
+from app.core.auth import (
+    AuthenticatedSubject,
+    authenticated_subject,
+    authorize_subject_scope,
+    configure_identity_provider,
+)
 from app.core.errors import AuthenticationRequiredError, ForbiddenError
 from app.core.settings import get_settings
 from app.main import app
@@ -38,6 +43,46 @@ async def test_production_rejects_development_header_adapter() -> None:
             await authenticated_subject("local-user")
     finally:
         settings.app_env = original_env
+
+        assert error.value.code == "authentication_required"
+
+
+@pytest.mark.anyio
+async def test_configured_provider_resolves_authorization_without_exposing_token() -> None:
+    class FakeProvider:
+        async def resolve(self, authorization: str) -> AuthenticatedSubject:
+            assert authorization == "Bearer opaque-token"
+            return AuthenticatedSubject("provider-user", "local_header")
+
+    settings = get_settings()
+    original_env = settings.app_env
+    configure_identity_provider(FakeProvider())
+    settings.app_env = "production"
+    try:
+        subject = await authenticated_subject(None, "Bearer opaque-token")
+    finally:
+        settings.app_env = original_env
+        configure_identity_provider(None)
+
+    assert subject == AuthenticatedSubject("provider-user", "configured_provider")
+
+
+@pytest.mark.anyio
+async def test_provider_failure_fails_closed_with_stable_error() -> None:
+    class FailingProvider:
+        async def resolve(self, authorization: str) -> None:
+            raise RuntimeError("token parser details")
+
+    settings = get_settings()
+    original_env = settings.app_env
+    configure_identity_provider(FailingProvider())
+    settings.app_env = "production"
+    try:
+        with pytest.raises(AuthenticationRequiredError) as error:
+            await authenticated_subject(None, "Bearer invalid")
+    finally:
+        settings.app_env = original_env
+        configure_identity_provider(None)
 
     assert error.value.code == "authentication_required"
 
@@ -84,3 +129,16 @@ def test_authorize_subject_scope_rejects_empty_resource_subject() -> None:
 
     with pytest.raises(ForbiddenError):
         authorize_subject_scope(subject, "")
+
+
+def test_identity_provider_settings_support_clerk_and_firebase() -> None:
+    settings = get_settings()
+    original = (settings.identity_provider, settings.identity_issuer, settings.identity_audience)
+    try:
+        settings.identity_provider = "clerk"
+        settings.identity_audience = "api"
+        assert settings.identity_provider == "clerk"
+        settings.identity_provider = "firebase"
+        assert settings.identity_provider == "firebase"
+    finally:
+        settings.identity_provider, settings.identity_issuer, settings.identity_audience = original
