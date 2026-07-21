@@ -13,6 +13,6 @@ COPY --from=builder /app/.venv /app/.venv
 COPY app ./app
 COPY migrations ./migrations
 USER app
-ENV PATH="/app/.venv/bin:$PATH" PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ENV PATH="/app/.venv/bin:$PATH" PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 WEB_CONCURRENCY=1
 EXPOSE 8000
-CMD ["sh", "-c", "python -m app.core.migrations migrate && exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "python -m app.core.migrations migrate && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers ${WEB_CONCURRENCY:-1}"]
