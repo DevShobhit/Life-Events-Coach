@@ -9,12 +9,24 @@ import {
   toRoadmapActionPayload,
 } from "@/lib/offline/replay-roadmap-actions";
 import { browserRoadmapOfflineStore } from "@/lib/offline/roadmap-cache";
+import {
+  isServiceWorkerResetRequested,
+  resetApplicationServiceWorker,
+} from "@/lib/offline/service-worker-recovery";
 import { queryClient } from "@/lib/query/query-client";
 
 export function OfflineSync() {
   useEffect(() => {
     let disposed = false;
     let cleanupRegistration = () => {};
+    if (
+      process.env.NODE_ENV === "development" &&
+      isServiceWorkerResetRequested(window.location.search)
+    ) {
+      void resetApplicationServiceWorker().then(() => {
+        logDevelopment("service_worker.reset.completed");
+      });
+    }
     if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
       logDevelopment("service_worker.registration.started");
       void navigator.serviceWorker
