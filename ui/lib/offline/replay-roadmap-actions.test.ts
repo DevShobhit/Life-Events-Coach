@@ -94,4 +94,18 @@ describe("replayQueuedRoadmapActions", () => {
 
     expect(refreshed).toEqual(["user:phase:arrived"]);
   });
+
+  test("refreshes stale cached roadmap state after replay succeeds", async () => {
+    let cachedStale = true;
+
+    await replayQueuedRoadmapActions({
+      replay: async (execute) => execute(action()),
+      submit: async () => undefined,
+      refresh: async () => {
+        cachedStale = false;
+      },
+    });
+
+    expect(cachedStale).toBe(false);
+  });
 });
