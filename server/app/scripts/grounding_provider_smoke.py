@@ -43,7 +43,10 @@ async def run_provider_smoke(
         payload: object = retrieve.json() if retrieve.is_success else {}
     except ValueError:
         payload = {}
-    sources = payload.get("sources", []) if isinstance(payload, dict) else []
+    valid_payload = isinstance(payload, dict) and isinstance(
+        payload.get("sources"), list
+    )
+    sources = payload["sources"] if valid_payload else []
     return {
         "kind": "grounding_provider_smoke",
         "health_status": health.status_code,
@@ -52,8 +55,7 @@ async def run_provider_smoke(
         "ok": (
             health.is_success
             and retrieve.is_success
-            and isinstance(sources, list)
-            and bool(payload)
+            and valid_payload
         ),
     }
 
