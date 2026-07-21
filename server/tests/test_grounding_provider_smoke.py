@@ -25,3 +25,23 @@ def test_provider_smoke_reports_only_safe_status_metadata() -> None:
         "ok": True,
     }
     assert "question" not in result
+
+
+def test_provider_smoke_reports_transport_failure_without_payloads() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("provider unavailable", request=request)
+
+    result = asyncio.run(
+        run_provider_smoke(
+            base_url="https://provider.example",
+            transport=httpx.MockTransport(handler),
+        )
+    )
+
+    assert result == {
+        "kind": "grounding_provider_smoke",
+        "health_status": 599,
+        "retrieve_status": 599,
+        "source_count": 0,
+        "ok": False,
+    }
