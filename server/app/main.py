@@ -3,7 +3,7 @@ import hashlib
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import date
-from time import perf_counter
+from time import monotonic, perf_counter
 from uuid import uuid4
 
 import structlog
@@ -172,6 +172,8 @@ protected_rate_limiter = SlidingWindowRateLimiter(
     max_requests=settings.protected_rate_limit_requests,
     window_seconds=settings.protected_rate_limit_window_seconds,
 )
+_readiness_lock = asyncio.Lock()
+_readiness_cache: dict[type, float] = {}
 _local_grounding = InProcessGroundingProvider()
 grounding_provider = ResilientGroundingProvider(
     primary=(
@@ -549,14 +551,22 @@ async def ready_health(
     session: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> Response:
     """Check database reachability with a bounded probe before accepting traffic."""
-    try:
-        await asyncio.wait_for(session.execute(text("SELECT 1")), timeout=1.0)
-    except Exception:
-        logger.warning("application.readiness.failed", exc_info=True)
-        return JSONResponse(
-            status_code=503,
-            content={"status": "unready", "service": "lifecurriculum-api"},
-        )
+    session_type = type(session)
+    async with _readiness_lock:
+        if _readiness_cache.get(session_type, 0) > monotonic():
+            return JSONResponse(
+                status_code=200,
+                content={"status": "ok", "service": "lifecurriculum-api"},
+            )
+        try:
+            await asyncio.wait_for(session.execute(text("SELECT 1")), timeout=1.0)
+        except Exception:
+            logger.warning("application.readiness.failed", exc_info=True)
+            return JSONResponse(
+                status_code=503,
+                content={"status": "unready", "service": "lifecurriculum-api"},
+            )
+        _readiness_cache[session_type] = monotonic() + settings.readiness_cache_seconds
     if settings.approved_source_provider_url and not await grounding_provider.healthcheck():
         logger.warning("application.readiness.grounding_provider_failed")
         return JSONResponse(

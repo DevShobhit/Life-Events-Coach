@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     approved_source_provider_timeout_seconds: float = 2.0
     protected_rate_limit_requests: int = 60
     protected_rate_limit_window_seconds: int = 60
+    readiness_cache_seconds: float = 5.0
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

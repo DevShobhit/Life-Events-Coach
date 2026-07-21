@@ -56,6 +56,31 @@ def test_ready_health_returns_503_when_database_probe_fails() -> None:
     assert response.json()["status"] == "unready"
 
 
+def test_ready_health_coalesces_repeated_probes_for_the_same_session_type() -> None:
+    class CountingSession:
+        calls = 0
+
+        async def execute(self, query: Any) -> None:
+            self.calls += 1
+
+    session = CountingSession()
+
+    async def override_session() -> AsyncIterator[CountingSession]:
+        yield session
+
+    previous_overrides = dict(app.dependency_overrides)
+    app.dependency_overrides[get_session] = override_session
+    try:
+        with TestClient(app) as client:
+            assert client.get("/health/ready").status_code == 200
+            assert client.get("/health/ready").status_code == 200
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(previous_overrides)
+
+    assert session.calls == 1
+
+
 def test_request_id_is_preserved_and_trace_header_is_safe() -> None:
     with TestClient(app) as client:
         response = client.get(
