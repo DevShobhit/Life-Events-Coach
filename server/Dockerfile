@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM ghcr.io/astral-sh/uv:0.11.29-python3.13-bookworm-slim AS builder
+FROM ghcr.io/astral-sh/uv:0.8.15-python3.13-bookworm-slim AS builder
 
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
@@ -11,7 +11,8 @@ RUN groupadd --gid 10001 app && useradd --uid 10001 --gid app --create-home app
 WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 COPY app ./app
+COPY migrations ./migrations
 USER app
-ENV PATH="/app/.venv/bin:$PATH" PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ENV PATH="/app/.venv/bin:$PATH" PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 WEB_CONCURRENCY=1
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "python -m app.core.migrations migrate && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers ${WEB_CONCURRENCY:-1}"]

@@ -1,0 +1,66 @@
+import { describe, expect, test } from "bun:test";
+import { createRoadmapOfflineStore } from "@/lib/offline/roadmap-cache";
+import { ROADMAP_QUERY_STALE_TIME_MS } from "@/lib/query/query-client";
+import { roadmapQueryOptions } from "./queries";
+import { roadmapQueryKeys } from "./query-keys";
+
+function memoryStorage() {
+  const values = new Map<string, string>();
+  return {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+    removeItem: (key: string) => values.delete(key),
+  };
+}
+
+const roadmap = {
+  phase_id: "phase",
+  version: 1,
+  now: [],
+  current: null,
+  horizon: [],
+};
+
+describe("roadmap query keys", () => {
+  test("builds the stable detail key", () => {
+    expect(roadmapQueryKeys.detail("user", "phase", "arrived")).toEqual([
+      "roadmap",
+      "detail",
+      "user",
+      "phase",
+      "arrived",
+    ]);
+  });
+
+  test("applies the roadmap freshness policy to detail reads", () => {
+    const options = roadmapQueryOptions("user", "phase");
+
+    expect(options.queryKey).toEqual(roadmapQueryKeys.detail("user", "phase"));
+    expect(options.staleTime).toBe(ROADMAP_QUERY_STALE_TIME_MS);
+    expect(options.refetchOnReconnect).toBe(false);
+  });
+
+  test("keeps query keys and offline placeholders isolated by stage", () => {
+    const storage = memoryStorage();
+    const store = createRoadmapOfflineStore(storage);
+    const originalWindow = globalThis.window;
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: { localStorage: storage },
+    });
+    store.write("user", "phase", "arrived", { ...roadmap, version: 1 });
+    store.write("user", "phase", "preparing", { ...roadmap, version: 2 });
+
+    const arrived = roadmapQueryOptions("user", "phase", "arrived");
+    const preparing = roadmapQueryOptions("user", "phase", "preparing");
+
+    expect(arrived.queryKey).not.toEqual(preparing.queryKey);
+    expect(arrived.placeholderData?.()).toMatchObject({ version: 1 });
+    expect(preparing.placeholderData?.()).toMatchObject({ version: 2 });
+
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: originalWindow,
+    });
+  });
+});

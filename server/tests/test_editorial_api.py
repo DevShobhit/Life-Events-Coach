@@ -1,0 +1,218 @@
+from collections.abc import AsyncIterator
+
+from app.core.database import get_session
+from app.main import app
+from app.modules.phases.fixtures import LAUNCH_RELOCATION
+from app.modules.phases.orm_models import Base
+from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
+
+editorial_engine = create_async_engine(
+    "sqlite+aiosqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
+)
+editorial_factory = async_sessionmaker(editorial_engine, expire_on_commit=False)
+editorial_schema_ready = False
+
+
+async def override_session() -> AsyncIterator[AsyncSession]:
+    global editorial_schema_ready
+    if not editorial_schema_ready:
+        async with editorial_engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        editorial_schema_ready = True
+    async with editorial_factory() as session:
+        yield session
+
+
+def test_editorial_publish_requires_editorial_role() -> None:
+    previous = dict(app.dependency_overrides)
+    app.dependency_overrides[get_session] = override_session
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/editorial/phases/relocation/publish",
+                headers={"X-User-ID": "editor-1"},
+                json={"version": 1, "module": LAUNCH_RELOCATION.model_dump(mode="json")},
+            )
+        assert response.status_code == 403
+        assert response.json()["error"]["code"] == "forbidden"
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(previous)
+
+
+def test_editorial_publish_and_version_history_are_role_protected() -> None:
+    previous = dict(app.dependency_overrides)
+    app.dependency_overrides[get_session] = override_session
+    try:
+        with TestClient(app) as client:
+            headers = {"X-User-ID": "editor-1", "X-User-Role": "publisher"}
+            response = client.post(
+                "/editorial/phases/relocation/publish",
+                headers=headers,
+                json={"version": 1, "module": LAUNCH_RELOCATION.model_dump(mode="json")},
+            )
+            assert response.status_code == 200
+            assert response.json()["status"] == "published"
+
+            history = client.get(
+                "/editorial/phases/relocation/versions", headers=headers
+            )
+        assert history.status_code == 200
+        assert history.json()[0]["version"] == 1
+        assert history.json()[0]["status"] == "published"
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(previous)
+
+
+def test_editor_role_cannot_publish_and_duplicate_versions_are_conflicts() -> None:
+    previous = dict(app.dependency_overrides)
+    app.dependency_overrides[get_session] = override_session
+    try:
+        with TestClient(app) as client:
+            editor_headers = {"X-User-ID": "editor-1", "X-User-Role": "editor"}
+            editor_response = client.post(
+                "/editorial/phases/relocation/publish",
+                headers=editor_headers,
+                json={"version": 2, "module": LAUNCH_RELOCATION.model_dump(mode="json")},
+            )
+            assert editor_response.status_code == 403
+
+            publisher_headers = {"X-User-ID": "editor-1", "X-User-Role": "publisher"}
+            first = client.post(
+                "/editorial/phases/relocation/publish",
+                headers=publisher_headers,
+                json={"version": 2, "module": LAUNCH_RELOCATION.model_dump(mode="json")},
+            )
+            duplicate = client.post(
+                "/editorial/phases/relocation/publish",
+                headers=publisher_headers,
+                json={"version": 2, "module": LAUNCH_RELOCATION.model_dump(mode="json")},
+            )
+        assert first.status_code == 200
+        assert duplicate.status_code == 409
+        assert duplicate.json()["error"]["code"] == "conflict"
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(previous)
+
+
+def test_editorial_draft_can_be_updated_previewed_and_published_by_publisher() -> None:
+    previous = dict(app.dependency_overrides)
+    app.dependency_overrides[get_session] = override_session
+    try:
+        with TestClient(app) as client:
+            editor_headers = {"X-User-ID": "editor-1", "X-User-Role": "editor"}
+            created = client.post(
+                "/editorial/phases/relocation/drafts",
+                headers=editor_headers,
+                json={"module": LAUNCH_RELOCATION.model_dump(mode="json")},
+            )
+            assert created.status_code == 200
+            draft_id = created.json()["draft_id"]
+            updated = client.patch(
+                f"/editorial/phases/relocation/drafts/{draft_id}",
+                headers=editor_headers,
+                json={"expected_revision": 1, "module": LAUNCH_RELOCATION.model_dump(mode="json")},
+            )
+            assert updated.status_code == 200
+            preview = client.get(
+                f"/editorial/phases/relocation/drafts/{draft_id}/preview",
+                headers=editor_headers,
+            )
+            assert preview.status_code == 200
+            published = client.post(
+                f"/editorial/phases/relocation/drafts/{draft_id}/publish",
+                headers={"X-User-ID": "publisher-1", "X-User-Role": "publisher"},
+                json={"expected_active_version": 2, "idempotency_key": "draft-publish-1"},
+            )
+        assert published.status_code == 200
+        assert published.json()["status"] == "published"
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(previous)
+
+
+def test_repeating_editorial_publish_idempotency_key_replays_original_version() -> None:
+    previous = dict(app.dependency_overrides)
+    app.dependency_overrides[get_session] = override_session
+    try:
+        with TestClient(app) as client:
+            editor_headers = {"X-User-ID": "editor-1", "X-User-Role": "editor"}
+            created = client.post(
+                "/editorial/phases/relocation/drafts",
+                headers=editor_headers,
+                json={"module": LAUNCH_RELOCATION.model_dump(mode="json")},
+            )
+            draft_id = created.json()["draft_id"]
+            headers = {"X-User-ID": "publisher-1", "X-User-Role": "publisher"}
+            first = client.post(
+                f"/editorial/phases/relocation/drafts/{draft_id}/publish",
+                headers=headers,
+                json={"expected_active_version": 3, "idempotency_key": "repeat-1"},
+            )
+            repeated = client.post(
+                f"/editorial/phases/relocation/drafts/{draft_id}/publish",
+                headers=headers,
+                json={"expected_active_version": 3, "idempotency_key": "repeat-1"},
+            )
+        assert first.status_code == 200
+        assert repeated.status_code == 200
+        assert repeated.json()["version"] == first.json()["version"]
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(previous)
+
+
+def test_version_lifecycle_requires_roles_and_preserves_active_pointer() -> None:
+    previous = dict(app.dependency_overrides)
+    app.dependency_overrides[get_session] = override_session
+    try:
+        with TestClient(app) as client:
+            editor = {"X-User-ID": "editor-1", "X-User-Role": "editor"}
+            denied = client.post(
+                "/editorial/phases/relocation/versions/1/deprecate",
+                headers=editor,
+                json={},
+            )
+            publisher = {"X-User-ID": "publisher-1", "X-User-Role": "publisher"}
+            deprecated = client.post(
+                "/editorial/phases/relocation/versions/1/deprecate",
+                headers=publisher,
+                json={},
+            )
+            activated_by_publisher = client.post(
+                "/editorial/phases/relocation/versions/1/activate",
+                headers=publisher,
+                json={},
+            )
+            admin = {"X-User-ID": "admin-1", "X-User-Role": "admin"}
+            activated = client.post(
+                "/editorial/phases/relocation/versions/1/activate",
+                headers=admin,
+                json={},
+            )
+            rolled_back = client.post(
+                "/editorial/phases/relocation/versions/2/rollback",
+                headers=admin,
+                json={"expected_active_version": 1},
+            )
+            catalog = client.get("/phases/relocation")
+            restored = client.post(
+                "/editorial/phases/relocation/versions/1/rollback",
+                headers=admin,
+                json={"expected_active_version": 2},
+            )
+        assert denied.status_code == 403
+        assert deprecated.status_code == 200
+        assert activated_by_publisher.status_code == 403
+        assert activated.status_code == 200
+        assert rolled_back.status_code == 200
+        assert rolled_back.json()["previous_version"] == 1
+        assert catalog.json()["version"] == 2
+        assert restored.status_code == 200
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(previous)

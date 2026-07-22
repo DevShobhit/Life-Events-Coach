@@ -1,0 +1,2 @@
+ALTER TABLE card_progress
+ADD COLUMN IF NOT EXISTS completed_on DATE NULL;

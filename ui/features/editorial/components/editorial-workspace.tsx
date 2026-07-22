@@ -1,0 +1,650 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import { apiClient } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/errors";
+import {
+  updateEditorialConcern,
+  updateEditorialMetadata,
+  updateEditorialThreshold,
+  type EditorialConcernField,
+  type EditorialMetadataField,
+  type EditorialThresholdField,
+} from "@/features/editorial/editorial-form";
+import type {
+  EditorialDraft,
+  EditorialFreshness,
+  EditorialVersion,
+  PhaseModule,
+  PublishedPhaseModule,
+} from "@/lib/api/types";
+
+type EditorialRole = "editor" | "publisher" | "admin";
+
+const role = (process.env.NEXT_PUBLIC_EDITORIAL_ROLE ??
+  "editor") as EditorialRole;
+
+export function EditorialWorkspace() {
+  const [phases, setPhases] = useState<PublishedPhaseModule[]>([]);
+  const [phaseId, setPhaseId] = useState("");
+  const [drafts, setDrafts] = useState<EditorialDraft[]>([]);
+  const [draft, setDraft] = useState<EditorialDraft | null>(null);
+  const [versions, setVersions] = useState<EditorialVersion[]>([]);
+  const [freshness, setFreshness] = useState<EditorialFreshness | null>(null);
+  const [editorText, setEditorText] = useState("");
+  const [previewText, setPreviewText] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [conflict, setConflict] = useState(false);
+
+  const selectedPhase = useMemo(
+    () => phases.find((phase) => phase.module.phase_id === phaseId),
+    [phases, phaseId],
+  );
+
+  useEffect(() => {
+    void apiClient
+      .phases()
+      .then((items) => {
+        setPhases(items);
+        setPhaseId(items[0]?.module.phase_id ?? "");
+      })
+      .catch(() => setMessage("Editorial phases could not be loaded."));
+  }, []);
+
+  useEffect(() => {
+    if (!phaseId) return;
+    setVersions([]);
+    setFreshness(null);
+    void apiClient
+      .editorialDrafts(phaseId, role)
+      .then(setDrafts)
+      .catch(() => setMessage("Drafts could not be loaded."));
+    void apiClient
+      .editorialVersions(phaseId, role)
+      .then(setVersions)
+      .catch(() => setMessage("Published versions could not be loaded."));
+    void apiClient
+      .editorialFreshness(phaseId)
+      .then(setFreshness)
+      .catch(() => setMessage("Citation freshness could not be loaded."));
+  }, [phaseId]);
+
+  function selectDraft(next: EditorialDraft) {
+    setDraft(next);
+    setEditorText(JSON.stringify(next.module, null, 2));
+    setPreviewText(null);
+    setConflict(false);
+    setMessage(null);
+  }
+
+  function updateMetadata(field: EditorialMetadataField, value: string) {
+    if (!draft) return;
+    const nextModule = updateEditorialMetadata(draft.module, field, value);
+    setDraft({ ...draft, module: nextModule });
+    setEditorText(JSON.stringify(nextModule, null, 2));
+  }
+
+  function updateConcern(
+    concernId: string,
+    field: EditorialConcernField,
+    value: string,
+  ) {
+    if (!draft) return;
+    const nextModule = updateEditorialConcern(
+      draft.module,
+      concernId,
+      field,
+      value,
+    );
+    setDraft({ ...draft, module: nextModule });
+    setEditorText(JSON.stringify(nextModule, null, 2));
+  }
+
+  function updateThreshold(field: EditorialThresholdField, value: string) {
+    if (!draft) return;
+    const nextModule = updateEditorialThreshold(draft.module, field, value);
+    setDraft({ ...draft, module: nextModule });
+    setEditorText(JSON.stringify(nextModule, null, 2));
+  }
+
+  async function createDraft() {
+    if (!selectedPhase) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const next = await apiClient.createEditorialDraft(
+        phaseId,
+        role,
+        selectedPhase.module,
+      );
+      setDrafts((current) => [next, ...current]);
+      selectDraft(next);
+    } catch {
+      setMessage(
+        "Draft could not be created. Check the phase content and try again.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveDraft() {
+    if (!draft) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const module = JSON.parse(editorText) as PhaseModule;
+      const next = await apiClient.updateEditorialDraft(
+        phaseId,
+        draft.draft_id,
+        role,
+        module,
+        draft.revision,
+      );
+      setDraft(next);
+      setDrafts((current) =>
+        current.map((item) => (item.draft_id === next.draft_id ? next : item)),
+      );
+      setEditorText(JSON.stringify(next.module, null, 2));
+      setMessage("Draft saved.");
+    } catch (error) {
+      setMessage(
+        error instanceof SyntaxError
+          ? "Draft JSON is invalid."
+          : error instanceof ApiError && error.code === "conflict"
+            ? (setConflict(true), "This draft changed elsewhere. Reload it before saving again.")
+          : "Draft could not be saved.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function reloadDraft() {
+    if (!draft) return;
+    setBusy(true);
+    try {
+      const next = await apiClient.editorialDraft(phaseId, draft.draft_id, role);
+      selectDraft(next);
+      setDrafts((current) =>
+        current.map((item) => (item.draft_id === next.draft_id ? next : item)),
+      );
+      setMessage("Latest draft revision loaded. Review it before saving.");
+    } catch {
+      setMessage("The latest draft could not be loaded. Please retry.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function previewDraft() {
+    if (!draft) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const result = await apiClient.editorialPreview(
+        phaseId,
+        draft.draft_id,
+        role,
+      );
+      setPreviewText(JSON.stringify(result.module, null, 2));
+      setMessage("Preview generated from the saved draft.");
+    } catch (error) {
+      setMessage(
+        error instanceof ApiError && error.code === "conflict"
+          ? "Preview is out of date. Reload the draft and try again."
+          : "Preview could not be generated. Please retry.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function validateDraft() {
+    if (!draft) return;
+    setBusy(true);
+    try {
+      const result = await apiClient.validateEditorialDraft(
+        phaseId,
+        draft.draft_id,
+        role,
+      );
+      setMessage(
+        result.valid
+          ? "Draft is ready for review."
+          : "Draft needs changes before publishing.",
+      );
+    } catch {
+      setMessage("Draft validation failed. Please retry.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function publishDraft() {
+    if (!draft || (role !== "publisher" && role !== "admin")) return;
+    setBusy(true);
+    try {
+      const result = await apiClient.publishEditorialDraft(
+        phaseId,
+        draft.draft_id,
+        role,
+        draft.base_version,
+        crypto.randomUUID(),
+      );
+      setMessage(`Published version ${result.version}.`);
+      setDraft({
+        ...draft,
+        status: "published",
+        published_version: result.version,
+      });
+    } catch {
+      setMessage("Publish failed. The active version was not changed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function rollbackVersion(version: number) {
+    if (role !== "admin" || !freshness) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const result = await apiClient.rollbackEditorialVersion(
+        phaseId,
+        version,
+        freshness.version,
+        role,
+      );
+      setVersions((current) =>
+        current.map((item) =>
+          item.version === version
+            ? { ...item, status: "published" }
+            : item.version === result.previous_version
+              ? { ...item, status: "deprecated" }
+              : item,
+        ),
+      );
+      setFreshness({ ...freshness, version });
+      setMessage(`Rolled back to version ${version}.`);
+    } catch (error) {
+      setMessage(
+        error instanceof ApiError && error.code === "conflict"
+          ? "The active version changed. Refresh versions before rolling back."
+          : "Rollback failed. The active version was not changed.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="space-y-6" aria-label="Editorial workspace">
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="grid gap-1 text-sm">
+          Phase
+          <select
+            className="h-10 rounded-md border border-border bg-background px-3"
+            value={phaseId}
+            onChange={(event) => setPhaseId(event.target.value)}
+          >
+            {phases.map((phase) => (
+              <option key={phase.module.phase_id} value={phase.module.phase_id}>
+                {phase.module.display_name ?? phase.module.phase_id}
+              </option>
+            ))}
+          </select>
+        </label>
+        <Button
+          disabled={!selectedPhase || busy}
+          onClick={() => void createDraft()}
+          type="button"
+        >
+          New draft
+        </Button>
+      </div>
+      <div className="grid gap-6 lg:grid-cols-[14rem_1fr]">
+        <div aria-label="Draft list" className="space-y-2" role="list">
+          {drafts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No drafts yet.</p>
+          ) : (
+            drafts.map((item) => (
+              <Button
+                className="w-full justify-start"
+                key={item.draft_id}
+                onClick={() => selectDraft(item)}
+                type="button"
+                variant={
+                  draft?.draft_id === item.draft_id ? "secondary" : "ghost"
+                }
+              >
+                {item.status} · r{item.revision}
+              </Button>
+            ))
+          )}
+          <div className="mt-6 border-t border-border pt-4 text-sm">
+            <h2 className="font-medium">Published versions</h2>
+            {versions.length === 0 ? (
+              <p className="mt-2 text-muted-foreground">No published versions.</p>
+            ) : (
+              <ul className="mt-2 space-y-1 text-muted-foreground">
+                {versions.map((item) => (
+                  <li className="flex items-center justify-between gap-2" key={item.version}>
+                    <span>v{item.version} · {item.status}</span>
+                    {role === "admin" && freshness?.version !== item.version ? (
+                      <Button
+                        disabled={busy}
+                        onClick={() => void rollbackVersion(item.version)}
+                        type="button"
+                        variant="ghost"
+                      >
+                        Roll back
+                      </Button>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+        <div className="space-y-4">
+          <div
+            aria-label="Citation freshness"
+            className="rounded-md border border-border p-4 text-sm"
+          >
+            <h2 className="font-medium">Citation freshness</h2>
+            {freshness ? (
+              <p className="mt-1 text-muted-foreground">
+                Version {freshness.version}: {freshness.stale_count} stale of {freshness.items.length} citations
+                (review every {freshness.freshness_days} days).
+              </p>
+            ) : (
+              <p className="mt-1 text-muted-foreground">Freshness data unavailable.</p>
+            )}
+          </div>
+          {draft ? (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Draft {draft.draft_id} · revision {draft.revision}
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    disabled={busy}
+                    onClick={() => void saveDraft()}
+                    type="button"
+                    variant="outline"
+                  >
+                    Save
+                  </Button>
+                  {conflict ? (
+                    <Button
+                      disabled={busy}
+                      onClick={() => void reloadDraft()}
+                      type="button"
+                      variant="outline"
+                    >
+                      Reload draft
+                    </Button>
+                  ) : null}
+                  <Button
+                    disabled={busy}
+                    onClick={() => void validateDraft()}
+                    type="button"
+                    variant="outline"
+                  >
+                    Validate
+                  </Button>
+                  <Button
+                    disabled={busy}
+                    onClick={() => void previewDraft()}
+                    type="button"
+                    variant="outline"
+                  >
+                    Preview
+                  </Button>
+                  {role === "publisher" || role === "admin" ? (
+                    <Button
+                      disabled={busy || draft.status === "published"}
+                      onClick={() => void publishDraft()}
+                      type="button"
+                    >
+                      Publish
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+              <label className="grid gap-2 text-sm">
+                Display name
+                <input
+                  aria-label="Draft display name"
+                  className="h-10 rounded-md border border-border bg-background px-3"
+                  onChange={(event) =>
+                    updateMetadata("display_name", event.target.value)
+                  }
+                  value={draft.module.display_name ?? ""}
+                />
+              </label>
+              <label className="grid gap-2 text-sm">
+                Description
+                <textarea
+                  aria-label="Draft description"
+                  className="min-h-24 rounded-md border border-border bg-background p-3"
+                  onChange={(event) =>
+                    updateMetadata("description", event.target.value)
+                  }
+                  value={draft.module.description ?? ""}
+                />
+              </label>
+              <label className="grid gap-2 text-sm">
+                Approved source policy (one per line)
+                <textarea
+                  aria-label="Draft source policy"
+                  className="min-h-24 rounded-md border border-border bg-background p-3"
+                  onChange={(event) =>
+                    updateMetadata("source_policy", event.target.value)
+                  }
+                  value={draft.module.source_policy.join("\n")}
+                />
+              </label>
+              <fieldset className="space-y-4 rounded-md border border-border p-4">
+                <legend className="px-1 text-sm font-medium">Concerns</legend>
+                {draft.module.concerns.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No concerns are configured for this draft.
+                  </p>
+                ) : (
+                  draft.module.concerns.map((concern) => (
+                    <div className="space-y-3 border-t border-border pt-4 first:border-t-0 first:pt-0" key={concern.id}>
+                      <p className="text-sm font-medium">{concern.id}</p>
+                      <label className="grid gap-1 text-sm">
+                        Title
+                        <input
+                          aria-label={`${concern.id} title`}
+                          className="h-10 rounded-md border border-border bg-background px-3"
+                          onChange={(event) =>
+                            updateConcern(concern.id, "title", event.target.value)
+                          }
+                          value={concern.title}
+                        />
+                      </label>
+                      <label className="grid gap-1 text-sm">
+                        Why now
+                        <textarea
+                          aria-label={`${concern.id} why now`}
+                          className="min-h-20 rounded-md border border-border bg-background p-3"
+                          onChange={(event) =>
+                            updateConcern(concern.id, "why_now", event.target.value)
+                          }
+                          value={concern.why_now}
+                        />
+                      </label>
+                      <label className="grid gap-1 text-sm">
+                        Bullets (one per line)
+                        <textarea
+                          aria-label={`${concern.id} bullets`}
+                          className="min-h-20 rounded-md border border-border bg-background p-3"
+                          onChange={(event) =>
+                            updateConcern(concern.id, "bullets", event.target.value)
+                          }
+                          value={concern.bullets.join("\n")}
+                        />
+                      </label>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <label className="grid gap-1 text-sm">
+                          Urgency
+                          <input
+                            aria-label={`${concern.id} urgency`}
+                            className="h-10 rounded-md border border-border bg-background px-3"
+                            min="0"
+                            onChange={(event) =>
+                              updateConcern(concern.id, "urgency", event.target.value)
+                            }
+                            type="number"
+                            value={concern.urgency}
+                          />
+                        </label>
+                        <label className="grid gap-1 text-sm">
+                          Horizon days
+                          <input
+                            aria-label={`${concern.id} horizon days`}
+                            className="h-10 rounded-md border border-border bg-background px-3"
+                            min="0"
+                            onChange={(event) =>
+                              updateConcern(concern.id, "horizon_days", event.target.value)
+                            }
+                            type="number"
+                            value={concern.horizon_days}
+                          />
+                        </label>
+                      </div>
+                      <label className="grid gap-1 text-sm">
+                        Card body
+                        <textarea
+                          aria-label={`${concern.id} card body`}
+                          className="min-h-20 rounded-md border border-border bg-background p-3"
+                          onChange={(event) =>
+                            updateConcern(concern.id, "card.body", event.target.value)
+                          }
+                          value={concern.card.body}
+                        />
+                      </label>
+                      <label className="grid gap-1 text-sm">
+                        Citation reviewed on
+                        <input
+                          aria-label={`${concern.id} citation reviewed on`}
+                          className="h-10 rounded-md border border-border bg-background px-3"
+                          onChange={(event) =>
+                            updateConcern(
+                              concern.id,
+                              "citation.reviewed_on",
+                              event.target.value,
+                            )
+                          }
+                          type="date"
+                          value={concern.citation.reviewed_on}
+                        />
+                      </label>
+                      <label className="grid gap-1 text-sm">
+                        Citation title
+                        <input
+                          aria-label={`${concern.id} citation title`}
+                          className="h-10 rounded-md border border-border bg-background px-3"
+                          onChange={(event) =>
+                            updateConcern(concern.id, "citation.title", event.target.value)
+                          }
+                          value={concern.citation.title}
+                        />
+                      </label>
+                      <label className="grid gap-1 text-sm">
+                        Citation URL
+                        <input
+                          aria-label={`${concern.id} citation URL`}
+                          className="h-10 rounded-md border border-border bg-background px-3"
+                          onChange={(event) =>
+                            updateConcern(concern.id, "citation.url", event.target.value)
+                          }
+                          type="url"
+                          value={concern.citation.url}
+                        />
+                      </label>
+                      <label className="grid gap-1 text-sm">
+                        Citation source type
+                        <input
+                          aria-label={`${concern.id} citation source type`}
+                          className="h-10 rounded-md border border-border bg-background px-3"
+                          onChange={(event) =>
+                            updateConcern(concern.id, "citation.source_type", event.target.value)
+                          }
+                          value={concern.citation.source_type}
+                        />
+                      </label>
+                    </div>
+                  ))
+                )}
+              </fieldset>
+              <fieldset className="grid gap-3 rounded-md border border-border p-4 sm:grid-cols-3">
+                <legend className="px-1 text-sm font-medium">Roadmap thresholds</legend>
+                {(
+                  [
+                    ["freshness_days", "Freshness days"],
+                    ["now_window_days", "Now window days"],
+                    ["horizon_days", "Horizon days"],
+                  ] as const
+                ).map(([field, label]) => (
+                  <label className="grid gap-1 text-sm" key={field}>
+                    {label}
+                    <input
+                      aria-label={label}
+                      className="h-10 rounded-md border border-border bg-background px-3"
+                      min="0"
+                      onChange={(event) => updateThreshold(field, event.target.value)}
+                      type="number"
+                      value={draft.module.thresholds?.[field] ?? ""}
+                    />
+                  </label>
+                ))}
+              </fieldset>
+              <label className="grid gap-2 text-sm">
+                Module JSON
+                <textarea
+                  aria-label="Draft module JSON"
+                  className="min-h-[28rem] rounded-md border border-border bg-background p-3 font-mono text-xs"
+                  value={editorText}
+                  onChange={(event) => setEditorText(event.target.value)}
+                />
+              </label>
+              {previewText ? (
+                <label className="grid gap-2 text-sm">
+                  Saved preview
+                  <textarea
+                    aria-label="Saved draft preview"
+                    className="min-h-[18rem] rounded-md border border-border bg-muted/30 p-3 font-mono text-xs"
+                    readOnly
+                    value={previewText}
+                  />
+                </label>
+              ) : null}
+            </>
+          ) : (
+            <p className="rounded-md border border-dashed border-border p-8 text-sm text-muted-foreground">
+              Select or create a draft to begin editing.
+            </p>
+          )}
+          {message ? (
+            <p
+              aria-live="polite"
+              className="text-sm text-muted-foreground"
+              role="status"
+            >
+              {message}
+            </p>
+          ) : null}
+        </div>
+      </div>
+    </section>
+  );
+}

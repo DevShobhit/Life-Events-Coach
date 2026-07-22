@@ -1,4 +1,24 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Steady Path is the Next.js 16 frontend for the LifeCurriculum relocation MVP.
+
+## Foundation
+
+- Use Bun for installs, scripts, and the checked-in lockfile.
+- The design contract lives in `DESIGN.md`; semantic tokens are defined in `app/globals.css`.
+- shadcn primitives are sourced from the configured `base-nova` registry and installed `components/ui` set. This phase adds no duplicate primitives; later screens compose existing blocks first.
+- Next 16 App Router documentation under `node_modules/next/dist/docs/` is the source of truth for framework APIs.
+
+## Offline behavior
+
+The last successful roadmap is cached locally by user and phase. Failed idempotent card actions are queued and replayed when the browser is online again. The service worker uses a network-first strategy for same-origin shell assets and does not cache API responses, questions, or protected context.
+
+## Verification
+
+```bash
+bun test
+bun run lint
+bunx tsc --noEmit
+bun run build
+```
 
 ## Getting Started
 
